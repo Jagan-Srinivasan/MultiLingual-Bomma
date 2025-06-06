@@ -1,23 +1,33 @@
-// Global variables and translations
+// script.js
+
+// Global variables
 let isTyping = false;
 let isRecording = false;
 let recognition = null;
 let currentLanguage = localStorage.getItem('preferredLanguage') || 'english';
 
-// Clear any existing interval from bomma-display.js
+// Clear any existing intervals from bomma-display.js when chat starts
 window.addEventListener('DOMContentLoaded', () => {
     if (window.welcomeMessageInterval) {
         clearInterval(window.welcomeMessageInterval);
     }
 });
 
-// Translations object
-[Your existing translations object]
-
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     showLoadingScreen();
-    setTimeout(() => {
+    
+    // Wait for resources to load
+    Promise.all([
+        new Promise(resolve => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
+            link.onload = resolve;
+            document.head.appendChild(link);
+        }),
+        new Promise(resolve => setTimeout(resolve, 3000))
+    ]).then(() => {
         hideLoadingScreen();
         loadConversation();
         setupInputHandlers();
@@ -25,10 +35,13 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeMobileLayout();
         updateUILanguage();
         addLanguageSwitcher();
-    }, 3000);
+    }).catch(error => {
+        console.error('Error during initialization:', error);
+        hideLoadingScreen();
+    });
 });
 
-// Add language switcher to header
+// Add language switcher
 function addLanguageSwitcher() {
     const headerRight = document.querySelector('.header-right');
     if (headerRight) {
@@ -43,17 +56,22 @@ function addLanguageSwitcher() {
     }
 }
 
+// Update UI text based on selected language
 function updateUILanguage() {
-    document.querySelectorAll('[data-translate]').forEach(element => {
-        const key = element.getAttribute('data-translate');
-        if (translations[currentLanguage][key]) {
-            if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                element.placeholder = translations[currentLanguage][key];
-            } else {
-                element.textContent = translations[currentLanguage][key];
+    try {
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (translations[currentLanguage] && translations[currentLanguage][key]) {
+                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                    element.placeholder = translations[currentLanguage][key];
+                } else {
+                    element.textContent = translations[currentLanguage][key];
+                }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error('Error updating UI language:', error);
+    }
 }
 
 // Language switching function
@@ -74,31 +92,5 @@ function switchLanguage(language) {
     }
 }
 
-[All your utility functions, message handling, voice and image handling, and chat management functions]
-
-// Helper function to get welcome message HTML
-function getWelcomeMessageHTML() {
-    return `
-        <div class="welcome-message">
-            <div class="welcome-icon">
-                <i class="fas fa-brain"></i>
-            </div>
-            <h2 data-translate="welcome">Welcome to Bomma AI</h2>
-            <p data-translate="description">Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.</p>
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-code"></i>
-                    <span data-translate="codeAssistance">Code Assistance</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-lightbulb"></i>
-                    <span data-translate="creativeSolutions">Creative Solutions</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-book"></i>
-                    <span data-translate="knowledgeBase">Knowledge Base</span>
-                </div>
-            </div>
-        </div>
-    `;
-}
+[Rest of your original script.js code including all utility functions,
+message handling functions, voice and image handling, and chat management functions]
