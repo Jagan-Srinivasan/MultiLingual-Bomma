@@ -16,18 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     showLoadingScreen();
-    
-    // Wait for resources to load
-    Promise.all([
-        new Promise(resolve => {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-            link.onload = resolve;
-            document.head.appendChild(link);
-        }),
-        new Promise(resolve => setTimeout(resolve, 3000))
-    ]).then(() => {
+    setTimeout(() => {
         hideLoadingScreen();
         loadConversation();
         setupInputHandlers();
@@ -35,10 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeMobileLayout();
         updateUILanguage();
         addLanguageSwitcher();
-    }).catch(error => {
-        console.error('Error during initialization:', error);
-        hideLoadingScreen();
-    });
+    }, 3000);
 });
 
 // Add language switcher
@@ -56,7 +42,6 @@ function addLanguageSwitcher() {
     }
 }
 
-// Update UI text based on selected language
 function updateUILanguage() {
     try {
         document.querySelectorAll('[data-translate]').forEach(element => {
@@ -92,5 +77,365 @@ function switchLanguage(language) {
     }
 }
 
-[Rest of your original script.js code including all utility functions,
-message handling functions, voice and image handling, and chat management functions]
+// Utility functions
+function showLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'flex';
+    }
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 500);
+    }
+}
+
+function initializeMobileLayout() {
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.style.display = 'none';
+        }
+    }
+}
+
+function setupInputHandlers() {
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    if (messageInput && sendBtn) {
+        messageInput.addEventListener('input', function() {
+            sendBtn.disabled = !this.value.trim();
+            autoResize(this);
+        });
+
+        messageInput.addEventListener('keydown', handleKeyDown);
+    }
+}
+
+function setupVoiceRecognition() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        const recognitionLanguages = {
+            english: 'en-US',
+            telugu: 'te-IN',
+            tamil: 'ta-IN'
+        };
+        recognition.lang = recognitionLanguages[currentLanguage];
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.value = transcript;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        };
+
+        recognition.onstart = function() {
+            isRecording = true;
+            const voiceBtn = document.getElementById('voiceBtn');
+            if (voiceBtn) {
+                voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                voiceBtn.classList.add('recording');
+            }
+        };
+
+        recognition.onend = function() {
+            isRecording = false;
+            const voiceBtn = document.getElementById('voiceBtn');
+            if (voiceBtn) {
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                voiceBtn.classList.remove('recording');
+            }
+        };
+    }
+}
+
+function handleKeyDown(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
+// Message handling functions
+async function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+
+    if (!message || isTyping) return;
+
+    addMessage(message, 'user');
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    document.getElementById('sendBtn').disabled = true;
+
+    showTypingIndicator();
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                message: message,
+                language: currentLanguage
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            hideTypingIndicator();
+            addMessage(data.response, 'assistant');
+        } else {
+            hideTypingIndicator();
+            addMessage(translations[currentLanguage].errorMessage, 'assistant');
+        }
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage(translations[currentLanguage].errorMessage, 'assistant');
+    }
+}
+
+function addMessage(content, role) {
+    const messagesContainer = document.getElementById('messages');
+    if (!messagesContainer) return;
+
+    const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+        // Clear welcome message interval when starting chat
+        if (window.clearWelcomeInterval) {
+            window.clearWelcomeInterval();
+        }
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+
+    if (role === 'user') {
+        avatar.innerHTML = '<i class="fas fa-user"></i>';
+    } else {
+        avatar.innerHTML = '<i class="fas fa-brain"></i>';
+    }
+
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    messageContent.innerHTML = formatMessage(content);
+
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function formatMessage(content) {
+    return content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+}
+
+function showTypingIndicator() {
+    isTyping = true;
+    const messagesContainer = document.getElementById('messages');
+    if (!messagesContainer) return;
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message assistant typing-indicator';
+    typingDiv.id = 'typingIndicator';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.innerHTML = '<i class="fas fa-brain"></i>';
+
+    const typingContent = document.createElement('div');
+    typingContent.className = 'message-content';
+    typingContent.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
+
+    typingDiv.appendChild(avatar);
+    typingDiv.appendChild(typingContent);
+
+    messagesContainer.appendChild(typingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    isTyping = false;
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+// Voice and image handling
+function toggleVoiceRecording() {
+    if (!recognition) {
+        alert(translations[currentLanguage].voiceNotSupported);
+        return;
+    }
+
+    if (isRecording) {
+        recognition.stop();
+    } else {
+        recognition.start();
+    }
+}
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imageDataUrl = e.target.result;
+            addImageMessage(imageDataUrl, 'user');
+            setTimeout(() => {
+                addMessage(translations[currentLanguage].imageAnalysisNotReady || "Image analysis is not yet implemented.", 'assistant');
+            }, 1000);
+        };
+        reader.readAsDataURL(file);
+        event.target.value = '';
+    } else {
+        alert(translations[currentLanguage].invalidImage || "Please select a valid image file.");
+    }
+}
+
+function addImageMessage(imageDataUrl, role) {
+    const messagesContainer = document.getElementById('messages');
+    if (!messagesContainer) return;
+
+    const welcomeMessage = messagesContainer.querySelector('.welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.remove();
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.innerHTML = '<i class="fas fa-user"></i>';
+
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.maxWidth = '300px';
+    img.style.maxHeight = '300px';
+    img.style.borderRadius = '8px';
+    img.style.objectFit = 'cover';
+    
+    messageContent.appendChild(img);
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Chat management functions
+async function newChat() {
+    try {
+        const response = await fetch('/api/new-chat', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            const messagesContainer = document.getElementById('messages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = getWelcomeMessageHTML();
+                updateUILanguage();
+            }
+        }
+    } catch (error) {
+        console.error('Error starting new chat:', error);
+    }
+}
+
+async function clearHistory() {
+    if (confirm(translations[currentLanguage].clearConfirm)) {
+        try {
+            const response = await fetch('/api/clear-history', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const messagesContainer = document.getElementById('messages');
+                if (messagesContainer) {
+                    messagesContainer.innerHTML = getWelcomeMessageHTML();
+                    updateUILanguage();
+                }
+            }
+        } catch (error) {
+            console.error('Error clearing history:', error);
+        }
+    }
+}
+
+async function loadConversation() {
+    try {
+        const response = await fetch('/api/conversations');
+        const data = await response.json();
+
+        if (data.messages && data.messages.length > 0) {
+            const messagesContainer = document.getElementById('messages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = '';
+                data.messages.forEach(message => {
+                    addMessage(message.content, message.role);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+    }
+}
+
+// Helper function to get welcome message HTML
+function getWelcomeMessageHTML() {
+    return `
+        <div class="welcome-message">
+            <div class="welcome-icon">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h2 id="bomma-welcome" data-translate="welcome">Welcome to Bomma AI</h2>
+            <p data-translate="description">Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.</p>
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-code"></i>
+                    <span data-translate="codeAssistance">Code Assistance</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-lightbulb"></i>
+                    <span data-translate="creativeSolutions">Creative Solutions</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-book"></i>
+                    <span data-translate="knowledgeBase">Knowledge Base</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
