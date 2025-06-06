@@ -4,6 +4,13 @@ let isRecording = false;
 let recognition = null;
 let currentLanguage = localStorage.getItem('preferredLanguage') || 'english';
 
+// Clear any existing interval from bomma-display.js
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.welcomeMessageInterval) {
+        clearInterval(window.welcomeMessageInterval);
+    }
+});
+
 // Translations object
 const translations = {
     english: {
@@ -21,7 +28,8 @@ const translations = {
         errorMessage: "Sorry, I encountered an error. Please try again.",
         clearConfirm: "Are you sure you want to clear the chat history?",
         invalidImage: "Please select a valid image file.",
-        voiceNotSupported: "Voice recognition is not supported in your browser."
+        voiceNotSupported: "Voice recognition is not supported in your browser.",
+        imageAnalysisNotReady: "I can see the image you uploaded! However, image analysis functionality is not fully implemented yet."
     },
     telugu: {
         welcome: "బొమ్మ AI కి స్వాగతం",
@@ -38,7 +46,8 @@ const translations = {
         errorMessage: "క్షమించండి, లోపం జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.",
         clearConfirm: "మీరు నిజంగా చాట్ చరిత్రను తొలగించాలనుకుంటున్నారా?",
         invalidImage: "దయచేసి చెల్లుబాటు అయ్యే చిత్రాన్ని ఎంచుకోండి.",
-        voiceNotSupported: "మీ బ్రౌజర్‌లో వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయబడదు."
+        voiceNotSupported: "మీ బ్రౌజర్‌లో వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయబడదు.",
+        imageAnalysisNotReady: "నేను మీరు అప్‌లోడ్ చేసిన చిత్రాన్ని చూడగలను! అయితే, చిత్ర విశ్లేషణ సౌకర్యం ఇంకా పూర్తిగా అమలు చేయబడలేదు."
     },
     tamil: {
         welcome: "பொம்மா AI க்கு வரவேற்கிறோம்",
@@ -55,7 +64,8 @@ const translations = {
         errorMessage: "மன்னிக்கவும், பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.",
         clearConfirm: "உரையாடல் வரலாற்றை அழிக்க விரும்புகிறீர்களா?",
         invalidImage: "சரியான படக்கோப்பைத் தேர்ந்தெடுக்கவும்.",
-        voiceNotSupported: "உங்கள் உலாவியில் குரல் அங்கீகாரம் ஆதரிக்கப்படவில்லை."
+        voiceNotSupported: "உங்கள் உலாவியில் குரல் அங்கீகாரம் ஆதரிக்கப்படவில்லை.",
+        imageAnalysisNotReady: "நீங்கள் பதிவேற்றிய படத்தை என்னால் பார்க்க முடிகிறது! இருப்பினும், பட பகுப்பாய்வு செயல்பாடு இன்னும் முழுமையாக செயல்படுத்தப்படவில்லை."
     }
 };
 
@@ -69,8 +79,24 @@ document.addEventListener('DOMContentLoaded', function() {
         setupVoiceRecognition();
         initializeMobileLayout();
         updateUILanguage();
-    }, 2000);
+        addLanguageSwitcher();
+    }, 3000);
 });
+
+// Add language switcher to header
+function addLanguageSwitcher() {
+    const headerRight = document.querySelector('.header-right');
+    if (headerRight) {
+        const languageSwitcher = document.createElement('div');
+        languageSwitcher.className = 'language-switcher';
+        languageSwitcher.innerHTML = `
+            <button onclick="switchLanguage('english')" class="lang-btn ${currentLanguage === 'english' ? 'active' : ''}" title="English">EN</button>
+            <button onclick="switchLanguage('telugu')" class="lang-btn ${currentLanguage === 'telugu' ? 'active' : ''}" title="తెలుగు">తె</button>
+            <button onclick="switchLanguage('tamil')" class="lang-btn ${currentLanguage === 'tamil' ? 'active' : ''}" title="தமிழ்">த</button>
+        `;
+        headerRight.insertBefore(languageSwitcher, headerRight.firstChild);
+    }
+}
 
 function updateUILanguage() {
     document.querySelectorAll('[data-translate]').forEach(element => {
@@ -85,6 +111,26 @@ function updateUILanguage() {
     });
 }
 
+// Language switching function
+function switchLanguage(language) {
+    if (translations[language]) {
+        currentLanguage = language;
+        localStorage.setItem('preferredLanguage', language);
+        updateUILanguage();
+        setupVoiceRecognition();
+
+        // Update language switcher buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('onclick').includes(language)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+}
+
+[Rest of your original code - keep all the utility functions, message handling,
+voice and image handling, and chat management functions exactly as they are]
 // Utility functions
 function showLoadingScreen() {
     const loadingScreen = document.getElementById('loadingScreen');
