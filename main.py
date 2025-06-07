@@ -27,10 +27,24 @@ def get_user_id():
         session['user_id'] = str(uuid.uuid4())
     return session['user_id']
 
-# Multi-language responses (same as before)
+# Multi-language responses (make sure 'english' always present!)
 responses = {
-    # ... (your responses dict unchanged)
-    # [Omitted for brevity, keep your existing responses here]
+    'english': {
+        'hello': "Hello! How can I help you today?",
+        'hi': "Hi there! How can I assist you?",
+        'help': "I'm Bomma AI. Ask me anything or try changing the language.",
+        'error': "Sorry, something went wrong. Please try again.",
+        'fallback': "Thanks for reaching out! I'm Bomma AI, and I'd love to help with that. Currently running in demo mode."
+    },
+    'telugu': {
+        'hello': "హలో! నిన్ను ఎలా సహాయపడగలను?",
+        'hi': "హాయ్! నేను మీకు ఎలా సహాయపడగలను?",
+        'help': "నేను బొమ్మా AI. నన్ను ఏదైనా అడగండి లేదా భాషను మార్చండి.",
+        'error': "క్షమించండి, ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.",
+        'fallback': "మీ సందేశానికి ధన్యవాదాలు! నేను బొమ్మా AI, మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను."
+    },
+    # Add more languages here as needed, always include 'english'
+    # 'hindi': { ... }
 }
 
 @app.route('/')
@@ -104,6 +118,7 @@ def chat():
 
 def generate_ai_response(message, language, conversation_history):
     message_lower = message.lower()
+    # Always use .get with fallback to responses['english']
     lang_responses = responses.get(language, responses['english'])
 
     # Check for language-specific hardcoded responses
