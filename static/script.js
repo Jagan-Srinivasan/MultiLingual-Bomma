@@ -27,6 +27,31 @@ document.addEventListener('DOMContentLoaded', function() {
         updateUILanguage();
         addLanguageSwitcher();
         initializeSpeaker();
+        initializeMobileMenu(); // Add this line
+        
+        // Add event listeners for better history handling
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                loadConversation();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            loadConversation();
+        });
+    }, 3000);
+});
+document.addEventListener('DOMContentLoaded', function() {
+    showLoadingScreen();
+    setTimeout(() => {
+        hideLoadingScreen();
+        loadConversation();
+        setupInputHandlers();
+        setupVoiceRecognition();
+        initializeMobileLayout();
+        updateUILanguage();
+        addLanguageSwitcher();
+        initializeSpeaker();
         
         // Add event listeners for better history handling
         document.addEventListener('visibilitychange', () => {
