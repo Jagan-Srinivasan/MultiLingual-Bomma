@@ -112,10 +112,9 @@ function speakMessage(text) {
         utterance.voice = preferredVoice;
     }
 
-    // Set other properties
-    utterance.rate = 1.3;
-    utterance.pitch = 1.5;
-    utterance.volume = 1.0;
+   utterance.rate = 1.15;     // Smooth, not too fast
+utterance.pitch = 1.6;     // High and sweet
+utterance.volume = 1.0; 
 
     // Add event handlers
     utterance.onstart = () => {
