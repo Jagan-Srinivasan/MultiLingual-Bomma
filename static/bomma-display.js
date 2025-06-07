@@ -1,19 +1,19 @@
-// Three versions of "Welcome to Bomma AI" in English, Telugu, and Tamil
 const welcomeMessages = [
     "Welcome to Bomma AI", // English
-    " Welcome to బొమ్మ AI" , // Telugu
-    "Welcome to பொம்மா AI "  // Tamil
+    "Welcome to బొమ్మ AI", // Telugu
+    "Welcome to பொம்மா AI" // Tamil
 ];
 
-// Target element to display the message
-const welcomeElement = document.getElementById("bomma-welcome");
+document.addEventListener("DOMContentLoaded", function () {
+    const welcomeElement = document.getElementById("bomma-welcome");
+    if (!welcomeElement) return; // Prevent errors if element doesn't exist
 
-// Function to switch between messages
-let index = 0;
-function switchWelcomeMessage() {
-    welcomeElement.textContent = welcomeMessages[index];
-    index = (index + 1) % welcomeMessages.length; // Cycle through messages
-}
+    let index = 0;
+    function switchWelcomeMessage() {
+        welcomeElement.textContent = welcomeMessages[index];
+        index = (index + 1) % welcomeMessages.length;
+    }
 
-// Set interval to change the message every 3 seconds
-setInterval(switchWelcomeMessage, 2000);
+    switchWelcomeMessage(); // Show initial message right away
+    setInterval(switchWelcomeMessage, 2000);
+});
