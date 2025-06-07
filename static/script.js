@@ -113,8 +113,8 @@ function speakMessage(text) {
     }
 
     // Set other properties
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    utterance.rate = 1.3;
+    utterance.pitch = 1.5;
     utterance.volume = 1.0;
 
     // Add event handlers
