@@ -41,8 +41,9 @@
             </div>
 
             <div class="sidebar-content">
-                <div class="chat-history">
-                    <!-- Chat history will be populated here -->
+                <!-- Chat History List -->
+                <div class="chat-history" id="chatHistory">
+                    <!-- Populated by JS: conversation items, clickable -->
                 </div>
             </div>
 
@@ -58,26 +59,32 @@
         </div>
 
         <!-- Main Chat Area -->
-        <div class="main-content">
+        <div class="main-content" id="mainContent">
             <div class="chat-header">
                 <div class="header-left">
-                    <button id="menuBtn" class="menu-btn">
+                    <button id="menuBtn" class="menu-btn" aria-label="Open sidebar">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <div class="ai-avatar">
+                    <div class="ai-avatar" id="userAvatar" aria-label="User avatar" title="Click to change avatar" tabindex="0">
                         <i class="fas fa-brain"></i>
                     </div>
                     <div class="header-info">
-                        <h1>Bomma AI</h1>
+                        <h1 id="userName" contenteditable="true" spellcheck="false">Bomma AI</h1>
                         <span class="model-info" data-translate="description">Your Intelligent Assistant</span>
                     </div>
                 </div>
                 <div class="header-right">
-                    <!-- Language switcher will be inserted here by JavaScript -->
+                    <!-- Language switcher inserted by JS -->
                     <div class="status-indicator">
                         <span class="status-dot"></span>
                         <span class="status-text" data-translate="status">Online</span>
                     </div>
+                    <button id="profileBtn" class="profile-btn" aria-label="Open profile/settings" title="Settings">
+                        <i class="fas fa-user-cog"></i>
+                    </button>
+                    <button id="themeBtn" class="theme-btn" aria-label="Toggle theme" title="Theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
                     <button id="speakerBtn" class="speaker-btn" onclick="toggleSpeaker()" title="Toggle Voice">
                         <i class="fas fa-volume-mute"></i>
                     </button>
@@ -118,6 +125,10 @@
                             <i class="fas fa-image"></i>
                         </button>
                         <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                        <button id="fileBtn" onclick="document.getElementById('fileInput').click()" title="Upload File">
+                            <i class="fas fa-file-upload"></i>
+                        </button>
+                        <input type="file" id="fileInput" accept=".pdf,.docx,.txt" style="display: none;" onchange="handleFileUpload(event)">
                         <textarea 
                             id="messageInput" 
                             data-translate="messagePlaceholder"
@@ -135,9 +146,45 @@
             </div>
         </div>
     </div>
+
+    <!-- Settings Modal (hidden by default) -->
+    <div id="settingsModal" class="modal" aria-modal="true" role="dialog" tabindex="-1" style="display:none;">
+        <div class="modal-content">
+            <span class="modal-close" id="closeSettings" tabindex="0">&times;</span>
+            <h2>Settings</h2>
+            <div class="modal-section">
+                <label for="themeSelect">Theme:</label>
+                <select id="themeSelect">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+            <div class="modal-section">
+                <label for="voiceSelect">Voice:</label>
+                <select id="voiceSelect"></select>
+            </div>
+            <div class="modal-section">
+                <label for="userNameInput">Display Name:</label>
+                <input type="text" id="userNameInput" maxlength="32">
+            </div>
+            <div class="modal-section">
+                <label for="avatarInput">Avatar:</label>
+                <input type="file" id="avatarInput" accept="image/*">
+            </div>
+            <div class="modal-section">
+                <button id="saveSettingsBtn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast"></div>
+
+    <script src="{{ url_for('static', filename='highlight.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='marked.min.js') }}"></script>
     <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
     <script src="{{ url_for('static', filename='translations.js') }}"></script>
-    <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
