@@ -1,7 +1,7 @@
 const translations = {
     english: {
         welcome: "Welcome to Bomma AI",
-        description: "Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.",
+        description: "Your intelligent assistant.",
         newChat: "New Conversation",
         clearHistory: "Clear History",
         poweredBy: "Powered by Gemini AI",
