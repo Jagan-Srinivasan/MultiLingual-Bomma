@@ -40,7 +40,13 @@ document.addEventListener('DOMContentLoaded', function() {
         setupKeyboardShortcuts();
     }, 1000);
 });
-
+function formatMessage(content) {
+    return content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+}
 // ====== CHAT HISTORY ======
 async function loadConversationsList() {
     try {
