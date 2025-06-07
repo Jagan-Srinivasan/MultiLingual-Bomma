@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_from_directory
 import uuid
 import datetime
 import json
@@ -10,13 +10,12 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
 
-# Configure Gemini AI
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or 'AIzaSyBuWr2BQGvYvG8Sbheqd7cjZyTtnaIr0SU'
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-else:
-    model = None
+# Configure Gemini AI (do not hardcode fallback API key!)
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if not GEMINI_API_KEY:
+    raise EnvironmentError("GEMINI_API_KEY environment variable is not set")
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # In-memory storage: user_id -> {conversations: {conv_id: {...}}}
 users = {}
@@ -47,6 +46,11 @@ responses = {
     # 'hindi': { ... }
 }
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                              'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -54,67 +58,74 @@ def index():
 # --- Chat API: create/send message to a conversation ---
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    data = request.get_json()
-    message = data.get('message', '').strip()
-    language = data.get('language', 'english')
-    conv_id = data.get('conversation_id')
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        language = data.get('language', 'english')
+        conv_id = data.get('conversation_id')
 
-    if not message:
-        return jsonify({'error': 'Message is required'}), 400
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
 
-    user_id = get_user_id()
-    user = users.setdefault(user_id, {'conversations': {}})
+        user_id = get_user_id()
+        user = users.setdefault(user_id, {'conversations': {}})
 
-    # Use or create conversation
-    if not conv_id or conv_id not in user['conversations']:
-        # New conversation
-        conv_id = str(uuid.uuid4())
-        user['conversations'][conv_id] = {
-            'id': conv_id,
-            'messages': [],
-            'created_at': datetime.datetime.now().isoformat(),
-            'updated_at': datetime.datetime.now().isoformat(),
-            'language': language,
-            'title': message[:40] + ('...' if len(message) > 40 else '')
+        # Use or create conversation
+        if not conv_id or conv_id not in user['conversations']:
+            # New conversation
+            conv_id = str(uuid.uuid4())
+            user['conversations'][conv_id] = {
+                'id': conv_id,
+                'messages': [],
+                'created_at': datetime.datetime.now().isoformat(),
+                'updated_at': datetime.datetime.now().isoformat(),
+                'language': language,
+                'title': message[:40] + ('...' if len(message) > 40 else '')
+            }
+        conversation = user['conversations'][conv_id]
+
+        # Add user message
+        user_message = {
+            'id': str(uuid.uuid4()),
+            'role': 'user',
+            'content': message,
+            'timestamp': datetime.datetime.now().isoformat(),
+            'language': language
         }
-    conversation = user['conversations'][conv_id]
+        conversation['messages'].append(user_message)
 
-    # Add user message
-    user_message = {
-        'id': str(uuid.uuid4()),
-        'role': 'user',
-        'content': message,
-        'timestamp': datetime.datetime.now().isoformat(),
-        'language': language
-    }
-    conversation['messages'].append(user_message)
+        # Generate AI response
+        ai_response = generate_ai_response(message, language, conversation['messages'])
 
-    # Generate AI response
-    ai_response = generate_ai_response(message, language, conversation['messages'])
+        # Add AI message
+        ai_message = {
+            'id': str(uuid.uuid4()),
+            'role': 'assistant',
+            'content': ai_response,
+            'timestamp': datetime.datetime.now().isoformat(),
+            'language': language
+        }
+        conversation['messages'].append(ai_message)
 
-    # Add AI message
-    ai_message = {
-        'id': str(uuid.uuid4()),
-        'role': 'assistant',
-        'content': ai_response,
-        'timestamp': datetime.datetime.now().isoformat(),
-        'language': language
-    }
-    conversation['messages'].append(ai_message)
+        # Update conversation meta
+        conversation['updated_at'] = datetime.datetime.now().isoformat()
+        if not conversation.get("title"):
+            conversation["title"] = message[:40] + ('...' if len(message) > 40 else '')
 
-    # Update conversation meta
-    conversation['updated_at'] = datetime.datetime.now().isoformat()
-    if not conversation.get("title"):
-        conversation["title"] = message[:40] + ('...' if len(message) > 40 else '')
+        # Save current conversation
+        session['conversation_id'] = conv_id
 
-    # Save current conversation
-    session['conversation_id'] = conv_id
-
-    return jsonify({
-        'response': ai_response,
-        'conversation_id': conv_id,
-        'language': language
-    })
+        return jsonify({
+            'response': ai_response,
+            'conversation_id': conv_id,
+            'language': language
+        })
+    except Exception as e:
+        print(f"Chat error: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'response': responses['english']['error']
+        }), 500
 
 def generate_ai_response(message, language, conversation_history):
     message_lower = message.lower()
@@ -126,14 +137,28 @@ def generate_ai_response(message, language, conversation_history):
         if key in message_lower:
             return response
 
-    # Fallback to Gemini
+    # Gemini AI response with language context
     if model and GEMINI_API_KEY:
         try:
-            context = f"You are Bomma AI, a helpful and friendly AI assistant. Please respond in {language}."
-            if len(conversation_history) > 1:
-                context += "\nHere's our recent conversation:\n"
+            language_map = {
+                'telugu': 'Telugu (తెలుగు)',
+                'tamil': 'Tamil (தமிழ்)',
+                'english': 'English'
+            }
+            context = f"""You are Bomma AI, a helpful and friendly AI assistant.
+Instructions:
+1. Respond in {language_map.get(language, language)}
+2. Be concise and clear
+3. Maintain conversational tone
+4. Use appropriate script for {language}
+
+Conversation History:
+"""
+            # Add conversation history
+            if conversation_history:
                 for msg in conversation_history[-6:]:
                     context += f"{msg['role'].title()}: {msg['content']}\n"
+
             context += f"\nUser: {message}\nBomma AI:"
             response = model.generate_content(context)
             return response.text
