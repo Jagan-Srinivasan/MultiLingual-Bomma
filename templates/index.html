@@ -60,10 +60,10 @@
         <!-- Main Chat Area -->
         <div class="main-content">
             <div class="chat-header">
-                <button id="menuBtn" class="menu-btn">
-    <i class="fas fa-bars"></i>
-</button>
                 <div class="header-left">
+                    <button id="menuBtn" class="menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     <div class="ai-avatar">
                         <i class="fas fa-brain"></i>
                     </div>
@@ -78,12 +78,9 @@
                         <span class="status-dot"></span>
                         <span class="status-text" data-translate="status">Online</span>
                     </div>
-                    <div class="header-right">
-    <!-- After language switcher -->
-    <button id="speakerBtn" class="speaker-btn" onclick="toggleSpeaker()" title="Toggle Voice">
-        <i class="fas fa-volume-mute"></i>
-    </button>
-</div>
+                    <button id="speakerBtn" class="speaker-btn" onclick="toggleSpeaker()" title="Toggle Voice">
+                        <i class="fas fa-volume-mute"></i>
+                    </button>
                 </div>
             </div>
 
@@ -138,10 +135,9 @@
             </div>
         </div>
     </div>
-        <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
-
+    <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
     <script src="{{ url_for('static', filename='translations.js') }}"></script>
-<script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
