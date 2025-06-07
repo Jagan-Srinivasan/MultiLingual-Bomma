@@ -221,15 +221,26 @@ function addMessage(content, role, msgId=null) {
     // Use marked.js and highlight.js for markdown/code
     let formatted = '';
     try {
-        formatted = marked.parse(content, {
-            highlight: (str, lang) => {
+        // Use marked and highlight.js for syntax highlight
+        marked.setOptions({
+            highlight: function(code, lang) {
                 if (window.hljs && lang && hljs.getLanguage(lang)) {
-                    return hljs.highlight(str, { language: lang }).value;
+                    try {
+                        return hljs.highlight(code, {
+                            language: lang,
+                            ignoreIllegals: true
+                        }).value;
+                    } catch (e) {
+                        console.error('Highlight.js error:', e);
+                        return code;
+                    }
                 }
-                return str;
+                return code;
             }
         });
-    } catch {
+        formatted = marked.parse(content);
+    } catch (error) {
+        console.error('Markdown parsing error:', error);
         formatted = formatMessage(content);
     }
     messageContent.innerHTML = formatted;
