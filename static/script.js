@@ -1,5 +1,3 @@
-// script.js
-
 // Global variables
 let isTyping = false;
 let isRecording = false;
@@ -24,6 +22,17 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeMobileLayout();
         updateUILanguage();
         addLanguageSwitcher();
+        
+        // Add new event listeners for better history handling
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                loadConversation();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            loadConversation();
+        });
     }, 3000);
 });
 
@@ -42,186 +51,57 @@ function addLanguageSwitcher() {
     }
 }
 
-function updateUILanguage() {
+[Previous code remains the same until loadConversation function]
+
+// Updated loadConversation function
+async function loadConversation() {
     try {
-        document.querySelectorAll('[data-translate]').forEach(element => {
-            const key = element.getAttribute('data-translate');
-            if (translations[currentLanguage] && translations[currentLanguage][key]) {
-                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                    element.placeholder = translations[currentLanguage][key];
-                } else {
-                    element.textContent = translations[currentLanguage][key];
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error updating UI language:', error);
-    }
-}
-
-// Language switching function
-function switchLanguage(language) {
-    if (translations[language]) {
-        currentLanguage = language;
-        localStorage.setItem('preferredLanguage', language);
-        updateUILanguage();
-        setupVoiceRecognition();
-
-        // Update language switcher buttons
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('onclick').includes(language)) {
-                btn.classList.add('active');
-            }
-        });
-    }
-}
-
-// Utility functions
-function showLoadingScreen() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.style.display = 'flex';
-    }
-}
-
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-        setTimeout(() => {
-            loadingScreen.style.display = 'none';
-        }, 500);
-    }
-}
-
-function initializeMobileLayout() {
-    if (window.innerWidth <= 768) {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.style.display = 'none';
-        }
-    }
-}
-
-function setupInputHandlers() {
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    if (messageInput && sendBtn) {
-        messageInput.addEventListener('input', function() {
-            sendBtn.disabled = !this.value.trim();
-            autoResize(this);
-        });
-
-        messageInput.addEventListener('keydown', handleKeyDown);
-    }
-}
-
-function setupVoiceRecognition() {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        const recognitionLanguages = {
-            english: 'en-US',
-            telugu: 'te-IN',
-            tamil: 'ta-IN'
-        };
-        recognition.lang = recognitionLanguages[currentLanguage];
-
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript;
-            const messageInput = document.getElementById('messageInput');
-            if (messageInput) {
-                messageInput.value = transcript;
-                document.getElementById('sendBtn').disabled = false;
-            }
-        };
-
-        recognition.onstart = function() {
-            isRecording = true;
-            const voiceBtn = document.getElementById('voiceBtn');
-            if (voiceBtn) {
-                voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
-                voiceBtn.classList.add('recording');
-            }
-        };
-
-        recognition.onend = function() {
-            isRecording = false;
-            const voiceBtn = document.getElementById('voiceBtn');
-            if (voiceBtn) {
-                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-                voiceBtn.classList.remove('recording');
-            }
-        };
-    }
-}
-
-function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-    }
-}
-
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
-}
-
-// Message handling functions
-async function sendMessage() {
-    const messageInput = document.getElementById('messageInput');
-    const message = messageInput.value.trim();
-
-    if (!message || isTyping) return;
-
-    addMessage(message, 'user');
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-    document.getElementById('sendBtn').disabled = true;
-
-    showTypingIndicator();
-
-    try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                message: message,
-                language: currentLanguage
-            })
-        });
-
+        const response = await fetch('/api/conversations');
         const data = await response.json();
-
-        if (response.ok) {
-            hideTypingIndicator();
-            addMessage(data.response, 'assistant');
-        } else {
-            hideTypingIndicator();
-            addMessage(translations[currentLanguage].errorMessage, 'assistant');
+        
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer && data.messages && data.messages.length > 0) {
+            // Clear everything including welcome message if we have history
+            messagesContainer.innerHTML = '';
+            
+            // Add all messages from history
+            data.messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${message.role}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.innerHTML = message.role === 'user' ? 
+                    '<i class="fas fa-user"></i>' : 
+                    '<i class="fas fa-brain"></i>';
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.innerHTML = formatMessage(message.content);
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                messagesContainer.appendChild(messageDiv);
+            });
+            
+            // Scroll to bottom after loading history
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     } catch (error) {
-        hideTypingIndicator();
-        addMessage(translations[currentLanguage].errorMessage, 'assistant');
+        console.error('Error loading conversation:', error);
     }
 }
 
+// Updated addMessage function
 function addMessage(content, role) {
     const messagesContainer = document.getElementById('messages');
     if (!messagesContainer) return;
 
+    // Only remove welcome message if this is the first actual message
+    const messages = messagesContainer.querySelectorAll('.message');
     const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-    if (welcomeMessage) {
+    if (messages.length === 0 && welcomeMessage) {
         welcomeMessage.remove();
-        // Clear welcome message interval when starting chat
         if (window.clearWelcomeInterval) {
             window.clearWelcomeInterval();
         }
@@ -249,6 +129,7 @@ function addMessage(content, role) {
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
+
 
 function formatMessage(content) {
     return content
