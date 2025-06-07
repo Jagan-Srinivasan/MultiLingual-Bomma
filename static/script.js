@@ -15,7 +15,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Initialize the app
+// Initialize the app (Only ONE event listener for DOMContentLoaded)
 document.addEventListener('DOMContentLoaded', function() {
     showLoadingScreen();
     setTimeout(() => {
@@ -27,32 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateUILanguage();
         addLanguageSwitcher();
         initializeSpeaker();
-        initializeMobileMenu(); // Add this line
-        
-        // Add event listeners for better history handling
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                loadConversation();
-            }
-        });
+        initializeMobileMenu();
 
-        window.addEventListener('online', () => {
-            loadConversation();
-        });
-    }, 3000);
-});
-document.addEventListener('DOMContentLoaded', function() {
-    showLoadingScreen();
-    setTimeout(() => {
-        hideLoadingScreen();
-        loadConversation();
-        setupInputHandlers();
-        setupVoiceRecognition();
-        initializeMobileLayout();
-        updateUILanguage();
-        addLanguageSwitcher();
-        initializeSpeaker();
-        
         // Add event listeners for better history handling
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
@@ -69,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Add language switcher
 function addLanguageSwitcher() {
     const headerRight = document.querySelector('.header-right');
-    if (headerRight) {
+    if (headerRight && !headerRight.querySelector('.language-switcher')) {
         const languageSwitcher = document.createElement('div');
         languageSwitcher.className = 'language-switcher';
         languageSwitcher.innerHTML = `
@@ -93,7 +69,7 @@ function initializeSpeaker() {
 function toggleSpeaker() {
     isSpeakerEnabled = !isSpeakerEnabled;
     localStorage.setItem('speakerEnabled', isSpeakerEnabled);
-    
+
     const speakerBtn = document.getElementById('speakerBtn');
     if (speakerBtn) {
         speakerBtn.classList.toggle('active', isSpeakerEnabled);
@@ -129,10 +105,10 @@ function speakMessage(text) {
 
     const voices = speechSynthesis.getVoices();
 
-    // Choose a cute girl voice manually by filtering
+    // Choose a female voice if possible
     const preferredVoice = voices.find(voice =>
         voice.lang === utterance.lang &&
-        /female|girl|woman/i.test(voice.name)  // match female-like voices
+        /female|girl|woman/i.test(voice.name)
     ) || voices.find(voice => voice.lang === utterance.lang);
 
     if (preferredVoice) {
@@ -180,9 +156,7 @@ function updateUILanguage() {
 // Language switching function
 function switchLanguage(language) {
     if (translations[language]) {
-        // Stop any ongoing speech
         stopSpeaking();
-        
         currentLanguage = language;
         localStorage.setItem('preferredLanguage', language);
         updateUILanguage();
@@ -214,6 +188,8 @@ function hideLoadingScreen() {
         }, 500);
     }
 }
+
+// Only one definition for initializeMobileLayout
 function initializeMobileLayout() {
     if (window.innerWidth <= 768) {
         const sidebar = document.getElementById('sidebar');
@@ -227,10 +203,10 @@ function initializeMobileLayout() {
 function toggleMobileMenu() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
-    
+
     sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
-    
+
     // Prevent body scrolling when sidebar is open
     document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
 }
@@ -240,11 +216,11 @@ function initializeMobileMenu() {
     const menuBtn = document.getElementById('menuBtn');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
-    
+
     if (menuBtn && sidebar && overlay) {
         menuBtn.addEventListener('click', toggleMobileMenu);
         overlay.addEventListener('click', toggleMobileMenu);
-        
+
         // Close sidebar on window resize if screen becomes larger
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768 && sidebar.classList.contains('active')) {
@@ -253,14 +229,6 @@ function initializeMobileMenu() {
                 document.body.style.overflow = '';
             }
         });
-    }
-}
-function initializeMobileLayout() {
-    if (window.innerWidth <= 768) {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.style.display = 'none';
-        }
     }
 }
 
@@ -506,14 +474,14 @@ function addImageMessage(imageDataUrl, role) {
 
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content';
-    
+
     const img = document.createElement('img');
     img.src = imageDataUrl;
     img.style.maxWidth = '300px';
     img.style.maxHeight = '300px';
     img.style.borderRadius = '8px';
     img.style.objectFit = 'cover';
-    
+
     messageContent.appendChild(img);
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(messageContent);
@@ -564,32 +532,32 @@ async function loadConversation() {
     try {
         const response = await fetch('/api/conversations');
         const data = await response.json();
-        
+
         const messagesContainer = document.getElementById('messages');
         if (messagesContainer && data.messages && data.messages.length > 0) {
             // Clear everything including welcome message if we have history
             messagesContainer.innerHTML = '';
-            
+
             // Add all messages from history
             data.messages.forEach(message => {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${message.role}`;
-                
+
                 const avatar = document.createElement('div');
                 avatar.className = 'message-avatar';
-                avatar.innerHTML = message.role === 'user' ? 
-                    '<i class="fas fa-user"></i>' : 
+                avatar.innerHTML = message.role === 'user' ?
+                    '<i class="fas fa-user"></i>' :
                     '<i class="fas fa-brain"></i>';
-                
+
                 const messageContent = document.createElement('div');
                 messageContent.className = 'message-content';
                 messageContent.innerHTML = formatMessage(message.content);
-                
+
                 messageDiv.appendChild(avatar);
                 messageDiv.appendChild(messageContent);
                 messagesContainer.appendChild(messageDiv);
             });
-            
+
             // Scroll to bottom after loading history
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
