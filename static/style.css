@@ -883,3 +883,36 @@ body {
         min-width: 32px;
     }
 }
+.speaker-btn {
+    background: linear-gradient(135deg, #40414f 0%, #565869 100%);
+    border: 1px solid #667eea;
+    color: #e5e5e7;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.3s ease;
+}
+
+.speaker-btn:hover {
+    background: linear-gradient(135deg, #565869 0%, #667eea 100%);
+    transform: translateY(-2px);
+}
+
+.speaker-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #764ba2;
+}
+
+/* For mobile responsiveness */
+@media (max-width: 768px) {
+    .speaker-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
