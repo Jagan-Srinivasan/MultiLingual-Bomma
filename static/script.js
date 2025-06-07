@@ -115,7 +115,7 @@ function speakMessage(text) {
     }
 
     utterance.rate = 1.15;
-    utterance.pitch = 1.6;
+    utterance.pitch = 2.0;
     utterance.volume = 1.0;
 
     utterance.onstart = () => {
