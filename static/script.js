@@ -91,48 +91,46 @@ function stopSpeaking() {
 function speakMessage(text) {
     if (!isSpeakerEnabled || !speechSynthesis) return;
 
-    // Stop any ongoing speech
     stopSpeaking();
 
-    // Create new utterance
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set language based on current UI language
+
     const langMap = {
         'english': 'en-US',
         'telugu': 'te-IN',
         'tamil': 'ta-IN'
     };
     utterance.lang = langMap[currentLanguage] || 'en-US';
-    
-    // Set voice (optional - will use default if not found)
+
     const voices = speechSynthesis.getVoices();
-    const preferredVoice = voices.find(voice => voice.lang === utterance.lang);
+
+    // Choose a cute girl voice manually by filtering
+    const preferredVoice = voices.find(voice =>
+        voice.lang === utterance.lang &&
+        /female|girl|woman/i.test(voice.name)  // match female-like voices
+    ) || voices.find(voice => voice.lang === utterance.lang);
+
     if (preferredVoice) {
         utterance.voice = preferredVoice;
     }
 
-   utterance.rate = 1.15;     // Smooth, not too fast
-utterance.pitch = 1.6;     // High and sweet
-utterance.volume = 1.0; 
+    utterance.rate = 1.15;
+    utterance.pitch = 1.6;
+    utterance.volume = 1.0;
 
-    // Add event handlers
     utterance.onstart = () => {
         isCurrentlySpeaking = true;
     };
-
     utterance.onend = () => {
         isCurrentlySpeaking = false;
         currentUtterance = null;
     };
-
     utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event);
         isCurrentlySpeaking = false;
         currentUtterance = null;
     };
 
-    // Store current utterance and speak
     currentUtterance = utterance;
     speechSynthesis.speak(utterance);
 }
