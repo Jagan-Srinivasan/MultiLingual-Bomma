@@ -1,4 +1,141 @@
-// Global variables
+// Add these variables at the top with other global variables
+let isSpeakerEnabled = localStorage.getItem('speakerEnabled') === 'true';
+let isCurrentlySpeaking = false;
+let speechSynthesis = window.speechSynthesis;
+let currentUtterance = null;
+
+// Add this function to initialize speaker state
+function initializeSpeaker() {
+    const speakerBtn = document.getElementById('speakerBtn');
+    if (speakerBtn) {
+        speakerBtn.classList.toggle('active', isSpeakerEnabled);
+        speakerBtn.innerHTML = `<i class="fas fa-volume-${isSpeakerEnabled ? 'up' : 'mute'}"></i>`;
+    }
+}
+
+// Add this to your DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', function() {
+    showLoadingScreen();
+    setTimeout(() => {
+        hideLoadingScreen();
+        loadConversation();
+        setupInputHandlers();
+        setupVoiceRecognition();
+        initializeMobileLayout();
+        updateUILanguage();
+        addLanguageSwitcher();
+        initializeSpeaker(); // Add this line
+    }, 3000);
+});
+
+// Add these new functions
+function toggleSpeaker() {
+    isSpeakerEnabled = !isSpeakerEnabled;
+    localStorage.setItem('speakerEnabled', isSpeakerEnabled);
+    
+    const speakerBtn = document.getElementById('speakerBtn');
+    if (speakerBtn) {
+        speakerBtn.classList.toggle('active', isSpeakerEnabled);
+        speakerBtn.innerHTML = `<i class="fas fa-volume-${isSpeakerEnabled ? 'up' : 'mute'}"></i>`;
+    }
+
+    if (!isSpeakerEnabled && isCurrentlySpeaking) {
+        stopSpeaking();
+    }
+}
+
+function stopSpeaking() {
+    if (currentUtterance) {
+        speechSynthesis.cancel();
+        isCurrentlySpeaking = false;
+        currentUtterance = null;
+    }
+}
+
+function speakMessage(text) {
+    if (!isSpeakerEnabled || !speechSynthesis) return;
+
+    // Stop any ongoing speech
+    stopSpeaking();
+
+    // Create new utterance
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Set language based on current UI language
+    const langMap = {
+        'english': 'en-US',
+        'telugu': 'te-IN',
+        'tamil': 'ta-IN'
+    };
+    utterance.lang = langMap[currentLanguage] || 'en-US';
+    
+    // Set voice (optional - will use default if not found)
+    const voices = speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice => voice.lang === utterance.lang);
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+
+    // Set other properties
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Add event handlers
+    utterance.onstart = () => {
+        isCurrentlySpeaking = true;
+    };
+
+    utterance.onend = () => {
+        isCurrentlySpeaking = false;
+        currentUtterance = null;
+    };
+
+    utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        isCurrentlySpeaking = false;
+        currentUtterance = null;
+    };
+
+    // Store current utterance and speak
+    currentUtterance = utterance;
+    speechSynthesis.speak(utterance);
+}
+
+// Modify the addMessage function to include speech
+// Find the existing addMessage function and add this line after adding the message to the container:
+function addMessage(content, role) {
+    // ... existing code ...
+
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    // Add this line to speak assistant messages
+    if (role === 'assistant') {
+        speakMessage(content);
+    }
+}
+
+// Add this to handle speech when switching languages
+function switchLanguage(language) {
+    if (translations[language]) {
+        // Stop any ongoing speech
+        stopSpeaking();
+        
+        // Existing language switch code
+        currentLanguage = language;
+        localStorage.setItem('preferredLanguage', language);
+        updateUILanguage();
+        setupVoiceRecognition();
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('onclick').includes(language)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+}// Global variables
 let isTyping = false;
 let isRecording = false;
 let recognition = null;
