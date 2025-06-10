@@ -4,15 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bomma AI - Your Intelligent Assistant</title>
-    <!-- Favicon for browser tab -->
+    <!-- Enhanced Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Enhanced CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='improved-style.css') }}">
+    
+    <!-- Enhanced Font Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts for better typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Meta tags for better SEO and sharing -->
+    <meta name="description" content="Bomma AI - Your intelligent multilingual assistant powered by advanced AI technology">
+    <meta name="keywords" content="AI, chatbot, assistant, multilingual, Telugu, Tamil, English">
+    <meta property="og:title" content="Bomma AI - Your Intelligent Assistant">
+    <meta property="og:description" content="Experience the power of AI with multilingual support">
+    <meta property="og:type" content="website">
 </head>
 <body>
     <div class="sidebar-overlay"></div>
-    <!-- Loading Screen -->
+    
+    <!-- Enhanced Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-logo">
@@ -28,7 +45,7 @@
     </div>
 
     <div class="app-container">
-        <!-- Sidebar -->
+        <!-- Enhanced Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo-section">
@@ -37,21 +54,21 @@
                     </div>
                     <h2 class="logo-text">Bomma AI</h2>
                 </div>
-                <button class="new-chat-btn" onclick="newChat()">
+                <button class="new-chat-btn" onclick="newChat()" aria-label="Start new conversation">
                     <i class="fas fa-plus"></i>
                     <span data-translate="newChat">New Conversation</span>
                 </button>
             </div>
 
             <div class="sidebar-content">
-                <!-- Chat History List -->
+                <!-- Enhanced Chat History -->
                 <div class="chat-history" id="chatHistory">
-                    <!-- Populated by JS: conversation items, clickable -->
+                    <!-- Populated by JS -->
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                <button class="clear-btn" onclick="clearHistory()">
+                <button class="clear-btn" onclick="clearHistory()" aria-label="Clear chat history">
                     <i class="fas fa-trash-alt"></i>
                     <span data-translate="clearHistory">Clear History</span>
                 </button>
@@ -61,7 +78,7 @@
             </div>
         </div>
 
-        <!-- Main Chat Area -->
+        <!-- Enhanced Main Content -->
         <div class="main-content" id="mainContent">
             <div class="chat-header">
                 <div class="header-left">
@@ -82,13 +99,13 @@
                         <span class="status-dot"></span>
                         <span class="status-text" data-translate="status">Online</span>
                     </div>
-                    <button id="profileBtn" class="profile-btn" aria-label="Open profile/settings" title="Settings">
+                    <button id="profileBtn" class="profile-btn" aria-label="Open settings" title="Settings">
                         <i class="fas fa-user-cog"></i>
                     </button>
                     <button id="themeBtn" class="theme-btn" aria-label="Toggle theme" title="Theme">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button id="speakerBtn" class="speaker-btn" onclick="toggleSpeaker()" title="Toggle Voice">
+                    <button id="speakerBtn" class="speaker-btn" onclick="toggleSpeaker()" title="Toggle Voice" aria-label="Toggle voice output">
                         <i class="fas fa-volume-mute"></i>
                     </button>
                 </div>
@@ -96,11 +113,12 @@
 
             <div class="chat-container">
                 <div class="messages-container" id="messages">
+                    <!-- Enhanced Welcome Message -->
                     <div class="welcome-message">
                         <div class="welcome-icon">
                             <i class="fas fa-brain"></i>
                         </div>
-                        <div id="bomma-welcome" data-translate="welcome">Welcome to Bomma AI</div>
+                        <h2 id="bomma-welcome" data-translate="welcome">Welcome to Bomma AI</h2>
                         <p data-translate="description">Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.</p>
                         <div class="features">
                             <div class="feature">
@@ -119,16 +137,17 @@
                     </div>
                 </div>
 
+                <!-- Enhanced Input Container -->
                 <div class="input-container">
                     <div class="input-wrapper">
-                        <button id="voiceBtn" onclick="toggleVoiceRecording()" title="Voice Input">
+                        <button id="voiceBtn" onclick="toggleVoiceRecording()" title="Voice Input" aria-label="Voice input">
                             <i class="fas fa-microphone"></i>
                         </button>
-                        <button id="imageBtn" onclick="document.getElementById('imageInput').click()" title="Upload Image">
+                        <button id="imageBtn" onclick="document.getElementById('imageInput').click()" title="Upload Image" aria-label="Upload image">
                             <i class="fas fa-image"></i>
                         </button>
                         <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-                        <button id="fileBtn" onclick="document.getElementById('fileInput').click()" title="Upload File">
+                        <button id="fileBtn" onclick="document.getElementById('fileInput').click()" title="Upload File" aria-label="Upload file">
                             <i class="fas fa-file-upload"></i>
                         </button>
                         <input type="file" id="fileInput" accept=".pdf,.docx,.txt" style="display: none;" onchange="handleFileUpload(event)">
@@ -137,8 +156,9 @@
                             data-translate="messagePlaceholder"
                             placeholder="Message Bomma AI..." 
                             rows="1"
+                            aria-label="Type your message"
                         ></textarea>
-                        <button id="sendBtn" onclick="sendMessage()" disabled>
+                        <button id="sendBtn" onclick="sendMessage()" disabled aria-label="Send message">
                             <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
@@ -150,14 +170,14 @@
         </div>
     </div>
 
-    <!-- Settings Modal (hidden by default) -->
+    <!-- Enhanced Settings Modal -->
     <div id="settingsModal" class="modal" aria-modal="true" role="dialog" tabindex="-1" style="display:none;">
         <div class="modal-content">
-            <span class="modal-close" id="closeSettings" tabindex="0">&times;</span>
+            <span class="modal-close" id="closeSettings" tabindex="0" aria-label="Close settings">&times;</span>
             <h2>Settings</h2>
             <div class="modal-section">
                 <label for="themeSelect">Theme:</label>
-                <select id="themeSelect">
+                <select id="themeSelect" aria-label="Select theme">
                     <option value="system">System</option>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
@@ -165,15 +185,15 @@
             </div>
             <div class="modal-section">
                 <label for="voiceSelect">Voice:</label>
-                <select id="voiceSelect"></select>
+                <select id="voiceSelect" aria-label="Select voice"></select>
             </div>
             <div class="modal-section">
                 <label for="userNameInput">Display Name:</label>
-                <input type="text" id="userNameInput" maxlength="32">
+                <input type="text" id="userNameInput" maxlength="32" aria-label="Enter display name">
             </div>
             <div class="modal-section">
                 <label for="avatarInput">Avatar:</label>
-                <input type="file" id="avatarInput" accept="image/*">
+                <input type="file" id="avatarInput" accept="image/*" aria-label="Upload avatar">
             </div>
             <div class="modal-section">
                 <button id="saveSettingsBtn">Save Settings</button>
@@ -181,11 +201,11 @@
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div id="toast" class="toast"></div>
+    <!-- Enhanced Toast Notifications -->
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
-    <!-- Use CDN for highlight.js for stability and avoid Explain error -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
             if (window.hljs) {
