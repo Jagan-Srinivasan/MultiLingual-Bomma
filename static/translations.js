@@ -1,57 +1,53 @@
+// Translations for the app
 const translations = {
-    english: {
-        welcome: "Welcome to Bomma AI",
-        description: "Your intelligent assistant.",
-        newChat: "New Conversation",
-        clearHistory: "Clear History",
-        poweredBy: "Powered by Gemini AI",
-        status: "Online",
-        codeAssistance: "Code Assistance",
-        creativeSolutions: "Creative Solutions",
-        knowledgeBase: "Knowledge Base",
-        messagePlaceholder: "Message Bomma AI...",
-        sendHint: "Press Enter to send, Shift+Enter for new line",
-        voiceNotSupported: "Voice input is not supported in your browser.",
-        imageAnalysisNotReady: "Image analysis is not yet implemented.",
-        invalidImage: "Please select a valid image file.",
-        clearConfirm: "Are you sure you want to clear the chat history?",
-        errorMessage: "I apologize, but I encountered an error. Please try again."
-    },
-    
-    telugu: {
-        welcome: "బొమ్మ AI కి స్వాగతం",
-        description: "మీ AI సహాయకుడు",
-        newChat: "కొత్త చాట్",
-        clearHistory: "చరిత్ర తొలగించు",
-        poweredBy: "Gemini AI తో",
-        status: "ఆన్‌లైన్",
-        codeAssistance: "కోడ్ సహాయం",
-        creativeSolutions: "సృజన",
-        knowledgeBase: "జ్ఞానం",
-        messagePlaceholder: "మెసేజ్ రాయండి...",
-        sendHint: "పంపడానికి Enter నొక్కండి",
-        voiceNotSupported: "వాయిస్ పని చేయదు",
-        imageAnalysisNotReady: "చిత్రం విశ్లేషణ రెడీ కాదు",
-        invalidImage: "సరైన చిత్రం ఎంచుకోండి",
-        clearConfirm: "చాట్ తొలగించాలా?",
-        errorMessage: "లోపం. మళ్ళీ ప్రయత్నించండి"
-    },
-    tamil: {
-        welcome: "பொம்மா AI வரவேற்பு",
-        description: "உங்கள் AI உதவியாளர்",
-        newChat: "புதிய அரட்டை",
-        clearHistory: "அழி",
-        poweredBy: "Gemini AI மூலம்",
-        status: "ஆன்லைன்",
-        codeAssistance: "கோட் உதவி",
-        creativeSolutions: "தீர்வுகள்",
-        knowledgeBase: "அறிவு",
-        messagePlaceholder: "செய்தி எழுதுக...",
-        sendHint: "அனுப்ப Enter அழுத்தவும்",
-        voiceNotSupported: "குரல் வசதி இல்லை",
-        imageAnalysisNotReady: "படம் பகுப்பாய்வு தயாராக இல்லை",
-        invalidImage: "சரியான படம் தேர்வு செய்க",
-        clearConfirm: "அரட்டையை அழிக்கவா?",
-        errorMessage: "பிழை. மீண்டும் முயற்சிக்கவும்"
-    }
-};
+  // English translations
+  en: {
+    welcome: "Welcome to Bomma AI",
+    description:
+      "Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.",
+    newChat: "New Conversation",
+    clearHistory: "Clear History",
+    poweredBy: "Powered by Gemini AI",
+    status: "Online",
+    messagePlaceholder: "Message Bomma AI...",
+    sendHint: "Press Enter to send, Shift+Enter for new line",
+    codeAssistance: "Code Assistance",
+    creativeSolutions: "Creative Solutions",
+    knowledgeBase: "Knowledge Base",
+    languageChanged: "Language changed to English",
+  },
+
+  // Telugu translations
+  te: {
+    welcome: "బొమ్మ AI కి స్వాగతం",
+    description:
+      "అధునాతన AI టెక్నాలజీతో నడిచే మీ తెలివైన సహాయకుడు. నేను మీకు సమాచారం, కోడింగ్, సృజనాత్మక పనులు మరియు ఆలోచనాత్మక సంభాషణలతో సహాయం చేయడానికి ఇక్కడ ఉన్నాను.",
+    newChat: "కొత్త సంభాషణ",
+    clearHistory: "చరిత్రను తొలగించండి",
+    poweredBy: "Gemini AI ద్వారా ఆధారితం",
+    status: "ఆన్‌లైన్‌లో",
+    messagePlaceholder: "బొమ్మ AI కి సందేశం పంపండి...",
+    sendHint: "పంపడానికి Enter నొక్కండి, కొత్త లైన్ కోసం Shift+Enter",
+    codeAssistance: "కోడ్ సహాయం",
+    creativeSolutions: "సృజనాత్మక పరిష్కారాలు",
+    knowledgeBase: "జ్ఞాన భాండాగారం",
+    languageChanged: "భాష తెలుగుకి మార్చబడింది",
+  },
+
+  // Tamil translations
+  ta: {
+    welcome: "பொம்மா AI க்கு வரவேற்கிறோம்",
+    description:
+      "மேம்பட்ட AI தொழில்நுட்பத்தால் இயக்கப்படும் உங்கள் புத்திசாலித்தனமான உதவியாளர். தகவல், குறியீட்டு, படைப்பாற்றல் பணிகள் மற்றும் சிந்தனை உரையாடல்களுடன் உங்களுக்கு உதவ நான் இங்கே இருக்கிறேன்.",
+    newChat: "புதிய உரையாடல்",
+    clearHistory: "வரலாற்றை அழிக்கவும்",
+    poweredBy: "Gemini AI ஆல் இயக்கப்படுகிறது",
+    status: "ஆன்லைனில்",
+    messagePlaceholder: "பொம்மா AI க்கு செய்தி அனுப்பவும்...",
+    sendHint: "அனுப்ப Enter ஐ அழுத்தவும், புதிய வரிக்கு Shift+Enter",
+    codeAssistance: "குறியீட்டு உதவி",
+    creativeSolutions: "படைப்பாற்றல் தீர்வுகள்",
+    knowledgeBase: "அறிவுத் தளம்",
+    languageChanged: "மொழி தமிழுக்கு மாற்றப்பட்டது",
+  },
+}
