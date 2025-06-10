@@ -3,7 +3,7 @@ import json
 import google.generativeai as genai
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-
+from dotenv import load_dotenv
 import base64
 import time
 
