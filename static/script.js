@@ -27,7 +27,6 @@ const saveSettingsBtn = document.getElementById("saveSettingsBtn")
 const speakerBtn = document.getElementById("speakerBtn")
 const chatHistory = document.getElementById("chatHistory")
 
-// Translations object (all completed, no syntax errors)
 const translations = {
   en: {
     welcome: "Welcome to Bomma AI",
@@ -105,7 +104,6 @@ const translations = {
     pleaseSelectImage: "படக் கோப்பைத் தேர்ந்தெடுக்கவும்"
   }
 }
-
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
