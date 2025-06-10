@@ -8,18 +8,18 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     
-    <!-- Enhanced CSS -->
-    </script><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     
-    <!-- Enhanced Font Icons -->
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Google Fonts for better typography -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Meta tags for better SEO and sharing -->
+    <!-- SEO / Social -->
     <meta name="description" content="Bomma AI - Your intelligent multilingual assistant powered by advanced AI technology">
     <meta name="keywords" content="AI, chatbot, assistant, multilingual, Telugu, Tamil, English">
     <meta property="og:title" content="Bomma AI - Your Intelligent Assistant">
@@ -215,6 +215,7 @@
                 hljs.highlightAll();
             }
         });
+    </script>
     <script src="{{ url_for('static', filename='marked.min.js') }}"></script>
     <script src="{{ url_for('static', filename='bomma-display.js') }}"></script>
     <script src="{{ url_for('static', filename='translations.js') }}"></script>
