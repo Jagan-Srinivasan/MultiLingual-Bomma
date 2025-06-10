@@ -1,709 +1,852 @@
-// ====== GLOBAL STATE ======
-let isTyping = false;
-let isRecording = false;
-let recognition = null;
-let currentLanguage = localStorage.getItem('preferredLanguage') || 'english';
-let isSpeakerEnabled = localStorage.getItem('speakerEnabled') === 'true';
-let isCurrentlySpeaking = false;
-let speechSynthesis = window.speechSynthesis;
-let currentUtterance = null;
-let currentConversationId = null;
-let conversationsList = [];
-let settings = {
-    theme: localStorage.getItem('theme') || 'system',
-    userName: localStorage.getItem('userName') || 'Bomma AI',
-    avatar: localStorage.getItem('userAvatar') || '',
-    voice: localStorage.getItem('preferredVoice') || ''
-};
+// Global variables
+let currentChatId = "default"
+let isProcessing = false
+let speakerEnabled = false
+let currentLanguage = "en"
+const synth = window.speechSynthesis
+let voices = []
+let selectedVoice = null
 
-// ====== INIT ======
-window.addEventListener('DOMContentLoaded', () => {
-    if (window.welcomeMessageInterval) clearInterval(window.welcomeMessageInterval);
-});
+// DOM elements
+const messageInput = document.getElementById("messageInput")
+const sendBtn = document.getElementById("sendBtn")
+const messagesContainer = document.getElementById("messages")
+const loadingScreen = document.getElementById("loadingScreen")
+const voiceBtn = document.getElementById("voiceBtn")
+const sidebar = document.getElementById("sidebar")
+const menuBtn = document.getElementById("menuBtn")
+const sidebarOverlay = document.querySelector(".sidebar-overlay")
+const themeBtn = document.getElementById("themeBtn")
+const profileBtn = document.getElementById("profileBtn")
+const settingsModal = document.getElementById("settingsModal")
+const closeSettings = document.getElementById("closeSettings")
+const themeSelect = document.getElementById("themeSelect")
+const voiceSelect = document.getElementById("voiceSelect")
+const userNameInput = document.getElementById("userNameInput")
+const saveSettingsBtn = document.getElementById("saveSettingsBtn")
+const speakerBtn = document.getElementById("speakerBtn")
+const chatHistory = document.getElementById("chatHistory")
 
-document.addEventListener('DOMContentLoaded', function() {
-    showLoadingScreen();
+// Translations object
+const translations = {
+  en: {
+    welcome: "Welcome to Bomma AI",
+    description:
+      "Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.",
+    codeAssistance: "Code Assistance",
+    creativeSolutions: "Creative Solutions",
+    knowledgeBase: "Knowledge Base",
+    languageChanged: "Language changed to English",
+    settingsSaved: "Settings saved successfully",
+    voiceOutputEnabled: "Voice output enabled",
+    voiceOutputDisabled: "Voice output disabled",
+    uploadingImage: "Uploading and analyzing image...",
+    uploadingFile: "Uploading file...",
+    chatHistoryCleared: "Chat history cleared",
+    noChatHistory: "No chat history yet",
+    typeMessage: "Type a message...",
+    clearHistoryConfirmation: "Are you sure you want to clear all chat history?",
+    errorSendingMessage: "Error sending message. Please try again.",
+    errorProcessingImage: "Error processing image. Please try again.",
+    errorProcessingFile: "Error processing file. Please try again.",
+    errorCreatingNewChat: "Error creating new chat. Please try again.",
+    errorClearingChatHistory: "Error clearing chat history. Please try again.",
+    speechRecognitionNotSupported: "Speech recognition not supported in this browser",
+    listening: "Listening...",
+    pleaseSelectImage: "Please select an image file",
+  },
+  te: {
+    welcome: "Bomma AI కి స్వాగతం",
+    description:
+      "అధునాతన AI సాంకేతిక పరిజ్ఞానం ద్వారా ఆధారితమైన మీ తెలివైన సహాయకుడు. సమాచారం, కోడింగ్, సృజనాత్మక పనులు మరియు ఆలోచనాత్మక సంభాషణలతో మీకు సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను.",
+    codeAssistance: "కోడ్ సహాయం",
+    creativeSolutions: "సృజనాత్మక పరిష్కారాలు",
+    knowledgeBase: "నాలెడ్జ్ బేస్",
+    languageChanged: "భాష తెలుగుకు మార్చబడింది",
+    settingsSaved: "సెట్టింగ్‌లు విజయవంతంగా సేవ్ చేయబడ్డాయి",
+    voiceOutputEnabled: "వాయిస్ అవుట్‌పుట్ ప్రారంభించబడింది",
+    voiceOutputDisabled: "వాయిస్ అవుట్‌పుట్ నిలిపివేయబడింది",
+    uploadingImage: "చిత్రాన్ని అప్‌లోడ్ చేస్తోంది మరియు విశ్లేషిస్తోంది...",
+    uploadingFile: "ఫైల్‌ను అప్‌లోడ్ చేస్తోంది...",
+    chatHistoryCleared: "చాట్ హిస్టరీ క్లియర్ చేయబడింది",
+    noChatHistory: "చాట్ హిస్టరీ ఇంకా లేదు",
+    typeMessage: "సందేశాన్ని టైప్ చేయండి...",
+    clearHistoryConfirmation: "మీరు మొత్తం చాట్ హిస్టరీని క్లియర్ చేయాలనుకుంటున్నారా?",
+    errorSendingMessage: "సందేశం పంపడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    errorProcessingImage: "చిత్రాన్ని ప్రాసెస్ చేయడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    errorProcessingFile: "ఫైల్‌ను ప్రాసెస్ చేయడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    errorCreatingNewChat: "కొత్త చాట్‌ను సృష్టించడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    errorClearingChatHistory: "చాట్ హిస్టరీని క్లియర్ చేయడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    speechRecognitionNotSupported: "ఈ బ్రౌజర్‌లో వాయిస్ గుర్తింపు మద్దతు లేదు",
+    listening: "వింటున్నారు...",
+    pleaseSelectImage: "దయచేసి ఒక చిత్రం ఫైల్‌ను ఎంచుకోండి",
+  },
+  ta: {
+    welcome: "Bomma AI க்கு வரவேற்கிறோம்",
+    description:
+      "மேம்பட்ட AI தொழில்நுட்பத்தால் இயங்கும் உங்கள் அறிவார்ந்த உதவியாளர். தகவல், குறியீடாக்கம், ஆக்கப்பூர்வமான பணிகள் மற்றும் சிந்தனைமிக்க உரையாடல்களுடன் உங்களுக்கு உதவ நான் இங்கே இருக்கிறேன்.",
+    codeAssistance: "குறியீடு உதவி",
+    creativeSolutions: "ஆக்கப்பூர்வமான தீர்வுகள்",
+    knowledgeBase: "அறிவுத் தளம்",
+    languageChanged: "மொழி தமிழாக மாற்றப்பட்டது",
+    settingsSaved: "அமைப்புகள் வெற்றிகரமாக சேமிக்கப்பட்டன",
+    voiceOutputEnabled: "குரல் வெளியீடு இயக்கப்பட்டது",
+    voiceOutputDisabled: "குரல் வெளியீடு முடக்கப்பட்டது",
+    uploadingImage: "படத்தை பதிவேற்றி பகுப்பாய்வு செய்கிறது...",
+    uploadingFile: "கோப்பை பதிவேற்றுகிறது...",
+    chatHistoryCleared: "உரையாடல் வரலாறு அழிக்கப்பட்டது",
+    noChatHistory: "உரையாடல் வரலாறு இன்னும் இல்லை",
+    typeMessage: "ஒரு செய்தியை தட்டச்சு செய்க...",
+    clearHistoryConfirmation: "நீங்கள் அனைத்து உரையாடல் வரலாற்றையும் அழிக்க விரும்புகிறீர்களா?",
+    errorSendingMessage: "செய்தி அனுப்பும் போது பிழை. மீண்டும் முயற்சிக்கவும்.",
+    errorProcessingImage: "படத்தை செயலாக்கும் போது பிழை. மீண்டும் முயற்சிக்கவும்.",
+    errorProcessingFile: "கோப்பை செயலாக்கும் போது பிழை. மீண்டும் முயற்சிக்கவும்.",
+    errorCreatingNewChat: "புதிய உரையாடலை உருவாக்கும் போது பிழை. மீண்டும் முயற்சிக்கவும்.",
+    errorClearingChatHistory: "உரையாடல் வரலாற்றை அழிக்கும் போது பிழை. மீண்டும் முயற்சிக்கவும்.",
+    speechRecognitionNotSupported: "இந்த உலாவியில் பேச்சு அங்கீகாரம் ஆதரிக்கப்படவில்லை",
+    listening: "கேட்கிறது...",
+    pleaseSelectImage: "படக் கோப்பைத் தேர்ந்தெடுக்கவும்",
+  },
+}
+
+// Initialize the app
+document.addEventListener("DOMContentLoaded", () => {
+  // Hide loading screen after a delay
+  setTimeout(() => {
+    loadingScreen.classList.add("hidden")
     setTimeout(() => {
-        hideLoadingScreen();
-        loadConversationsList();
-        loadConversation();
-        setupInputHandlers();
-        setupVoiceRecognition();
-        initializeMobileLayout();
-        updateUILanguage();
-        addLanguageSwitcher();
-        initializeSpeaker();
-        initializeMobileMenu();
-        loadSettings();
-        setupSettingsModal();
-        setupThemeToggle();
-        setupKeyboardShortcuts();
-    }, 1000);
-});
-function formatMessage(content) {
-    return content
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/`(.*?)`/g, '<code>$1</code>')
-        .replace(/\n/g, '<br>');
+      loadingScreen.style.display = "none"
+    }, 600)
+  }, 1500)
+
+  // Initialize settings
+  initSettings()
+
+  // Create language switcher
+  createLanguageSwitcher()
+
+  // Load chat history
+  loadChatHistory()
+
+  // Set up event listeners
+  setupEventListeners()
+
+  // Initialize speech synthesis
+  initSpeechSynthesis()
+})
+
+// Initialize settings
+function initSettings() {
+  // Load saved settings
+  const savedTheme = localStorage.getItem("theme") || "system"
+  const savedUserName = localStorage.getItem("userName") || "Bomma AI"
+  const savedSpeakerEnabled = localStorage.getItem("speakerEnabled") === "true"
+
+  // Apply settings
+  themeSelect.value = savedTheme
+  userNameInput.value = savedUserName
+  document.getElementById("userName").textContent = savedUserName
+  speakerEnabled = savedSpeakerEnabled
+  updateSpeakerIcon()
+
+  // Apply theme
+  applyTheme(savedTheme)
 }
-// ====== CHAT HISTORY ======
-async function loadConversationsList() {
-    try {
-        const response = await fetch('/api/conversations/list');
-        const data = await response.json();
-        conversationsList = data.conversations || [];
-        renderChatHistoryList();
-    } catch (e) {
-        showToast('Failed to load chat history');
+
+// Apply theme
+function applyTheme(theme) {
+  if (theme === "system") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    document.body.classList.toggle("light-theme", !prefersDark)
+    themeBtn.innerHTML = prefersDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>'
+  } else if (theme === "light") {
+    document.body.classList.add("light-theme")
+    themeBtn.innerHTML = '<i class="fas fa-sun"></i>'
+  } else {
+    document.body.classList.remove("light-theme")
+    themeBtn.innerHTML = '<i class="fas fa-moon"></i>'
+  }
+}
+
+// Create language switcher
+function createLanguageSwitcher() {
+  const languages = [
+    { code: "en", name: "EN" },
+    { code: "te", name: "తెలుగు" },
+    { code: "ta", name: "தமிழ்" },
+  ]
+
+  const switcher = document.createElement("div")
+  switcher.className = "language-switcher"
+
+  languages.forEach((lang) => {
+    const btn = document.createElement("button")
+    btn.className = `lang-btn ${lang.code === currentLanguage ? "active" : ""}`
+    btn.textContent = lang.name
+    btn.onclick = () => switchLanguage(lang.code)
+    switcher.appendChild(btn)
+  })
+
+  document.querySelector(".header-right").prepend(switcher)
+}
+
+// Switch language
+function switchLanguage(langCode) {
+  currentLanguage = langCode
+
+  // Update active button
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.textContent === langCode)
+  })
+
+  // Update translations
+  updateTranslations()
+
+  // Save preference
+  localStorage.setItem("language", langCode)
+
+  // Show toast
+  showToast(translations[currentLanguage].languageChanged || "Language changed")
+}
+
+// Update translations
+function updateTranslations() {
+  const elements = document.querySelectorAll("[data-translate]")
+  elements.forEach((el) => {
+    const key = el.getAttribute("data-translate")
+    if (translations[currentLanguage] && translations[currentLanguage][key]) {
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        el.placeholder = translations[currentLanguage][key]
+      } else {
+        el.textContent = translations[currentLanguage][key]
+      }
     }
+  })
 }
 
-function renderChatHistoryList() {
-    const chatHistory = document.getElementById('chatHistory');
-    if (!chatHistory) return;
-    chatHistory.innerHTML = '';
-    if (!conversationsList.length) {
-        chatHistory.innerHTML = `<div class="chat-item chat-item-empty" tabindex="0">No previous conversations</div>`;
-        return;
+// Set up event listeners
+function setupEventListeners() {
+  // Message input
+  messageInput.addEventListener("input", () => {
+    sendBtn.disabled = messageInput.value.trim() === ""
+
+    // Auto-resize textarea
+    messageInput.style.height = "auto"
+    messageInput.style.height = messageInput.scrollHeight + "px"
+  })
+
+  messageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      if (!sendBtn.disabled) {
+        sendMessage()
+      }
     }
-    conversationsList.forEach(conv => {
-        const item = document.createElement('div');
-        item.className = 'chat-item' + (conv.id === currentConversationId ? ' active' : '');
-        item.tabIndex = 0;
-        item.innerHTML = `<strong>${conv.title || 'Conversation'}</strong>
-            <span class="chat-item-date">${new Date(conv.updated_at).toLocaleString()}</span>`;
-        item.onclick = () => switchConversation(conv.id);
-        item.onkeydown = (e) => { if (e.key === 'Enter') switchConversation(conv.id); };
-        chatHistory.appendChild(item);
-    });
-}
+  })
 
-async function switchConversation(id) {
-    if (id === currentConversationId) return;
-    currentConversationId = id;
-    await loadConversation();
-    highlightActiveConversation();
-}
+  // Menu button
+  menuBtn.addEventListener("click", toggleSidebar)
+  sidebarOverlay.addEventListener("click", toggleSidebar)
 
-function highlightActiveConversation() {
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.onclick && item.onclick.toString().includes(currentConversationId)) {
-            item.classList.add('active');
-        }
-    });
-}
+  // Theme button
+  themeBtn.addEventListener("click", toggleTheme)
 
-// ====== USER PROFILE/SETTINGS ======
-function loadSettings() {
-    document.getElementById('userName').textContent = settings.userName;
-    if (settings.avatar) {
-        document.getElementById('userAvatar').style.backgroundImage = `url(${settings.avatar})`;
-        document.getElementById('userAvatar').innerHTML = '';
+  // Profile button
+  profileBtn.addEventListener("click", () => {
+    settingsModal.style.display = "flex"
+  })
+
+  // Close settings
+  closeSettings.addEventListener("click", () => {
+    settingsModal.style.display = "none"
+  })
+
+  // Save settings
+  saveSettingsBtn.addEventListener("click", saveSettings)
+
+  // Close modal when clicking outside
+  window.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.style.display = "none"
     }
-    setTheme(settings.theme);
-}
+  })
 
-function setupSettingsModal() {
-    const modal = document.getElementById('settingsModal');
-    const openBtn = document.getElementById('profileBtn');
-    const closeBtn = document.getElementById('closeSettings');
-
-    if (openBtn) openBtn.onclick = () => { modal.style.display = 'block'; modal.focus(); };
-    if (closeBtn) closeBtn.onclick = () => modal.style.display = 'none';
-    modal.addEventListener('keydown', (e)=>{if(e.key==="Escape")modal.style.display='none';});
-
-    document.getElementById('themeSelect').value = settings.theme;
-    document.getElementById('userNameInput').value = settings.userName;
-
-    fillVoiceSelect();
-    document.getElementById('voiceSelect').value = settings.voice || '';
-
-    document.getElementById('saveSettingsBtn').onclick = () => {
-        settings.theme = document.getElementById('themeSelect').value;
-        settings.userName = document.getElementById('userNameInput').value || "Bomma AI";
-        settings.voice = document.getElementById('voiceSelect').value;
-        localStorage.setItem('theme', settings.theme);
-        localStorage.setItem('userName', settings.userName);
-        localStorage.setItem('preferredVoice', settings.voice);
-        document.getElementById('userName').textContent = settings.userName;
-        setTheme(settings.theme);
-
-        const avatarFile = document.getElementById('avatarInput').files[0];
-        if (avatarFile) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                settings.avatar = e.target.result;
-                localStorage.setItem('userAvatar', settings.avatar);
-                document.getElementById('userAvatar').style.backgroundImage = `url(${settings.avatar})`;
-                document.getElementById('userAvatar').innerHTML = '';
-            };
-            reader.readAsDataURL(avatarFile);
-        }
-        document.getElementById('settingsModal').style.display = 'none';
-    };
-}
-
-function fillVoiceSelect() {
-    const select = document.getElementById('voiceSelect');
-    if (!select) return;
-    select.innerHTML = '';
-    speechSynthesis.getVoices().forEach(voice => {
-        const opt = document.createElement('option');
-        opt.value = voice.name;
-        opt.textContent = `${voice.name} (${voice.lang})`;
-        select.appendChild(opt);
-    });
-}
-
-// ====== THEME CUSTOMIZATION ======
-function setupThemeToggle() {
-    document.getElementById('themeBtn').onclick = () => {
-        const next = settings.theme === 'dark' ? 'light' : settings.theme === 'light' ? 'system' : 'dark';
-        settings.theme = next;
-        localStorage.setItem('theme', next);
-        setTheme(next);
-        document.getElementById('themeSelect').value = next;
-    };
-}
-function setTheme(theme) {
-    if (theme === 'system') {
-        document.body.removeAttribute('data-theme');
-    } else {
-        document.body.setAttribute('data-theme', theme);
+  // Escape key to close modal
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && settingsModal.style.display === "flex") {
+      settingsModal.style.display = "none"
     }
+  })
 }
 
-// ====== TOAST NOTIFICATIONS ======
-function showToast(msg, duration=2500) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add('show');
-    setTimeout(()=>toast.classList.remove('show'), duration);
-}
+// Initialize speech synthesis
+function initSpeechSynthesis() {
+  if ("speechSynthesis" in window) {
+    // Get available voices
+    synth.onvoiceschanged = () => {
+      voices = synth.getVoices()
 
-// ====== KEYBOARD SHORTCUTS ======
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); newChat(); }
-        if (e.key === '/' && document.activeElement.tagName !== 'TEXTAREA') {
-            e.preventDefault(); document.getElementById('messageInput').focus();
-        }
-        if (e.key === 'Escape') {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
-    });
-}
+      // Populate voice select
+      voiceSelect.innerHTML = ""
+      voices.forEach((voice, i) => {
+        const option = document.createElement("option")
+        option.value = i
+        option.textContent = `${voice.name} (${voice.lang})`
+        voiceSelect.appendChild(option)
+      })
 
-// ====== MESSAGE ACTIONS (COPY/DELETE/EDIT/RATE) ======
-function addMessage(content, role, msgId=null) {
-    const messagesContainer = document.getElementById('messages');
-    if (!messagesContainer) return;
-    const messages = messagesContainer.querySelectorAll('.message');
-    const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-    if (messages.length === 0 && welcomeMessage) welcomeMessage.remove();
-
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
-    if (msgId) messageDiv.dataset.msgId = msgId;
-
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.innerHTML = (role === 'user') ?
-        (settings.avatar ? `<img src="${settings.avatar}" alt="User" />` : '<i class="fas fa-user"></i>') :
-        '<i class="fas fa-brain"></i>';
-
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
-
-    // Use marked.js and highlight.js for markdown/code
-    let formatted = '';
-    try {
-        // Use marked and highlight.js for syntax highlight
-        marked.setOptions({
-            highlight: function(code, lang) {
-                if (window.hljs && lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, {
-                            language: lang,
-                            ignoreIllegals: true
-                        }).value;
-                    } catch (e) {
-                        console.error('Highlight.js error:', e);
-                        return code;
-                    }
-                }
-                return code;
-            }
-        });
-        formatted = marked.parse(content);
-    } catch (error) {
-        console.error('Markdown parsing error:', error);
-        formatted = formatMessage(content);
-    }
-    messageContent.innerHTML = formatted;
-
-    // Message actions
-    const actions = document.createElement('div');
-    actions.className = 'message-actions';
-    actions.innerHTML = `
-        <button class="copy-btn" title="Copy"><i class="fas fa-copy"></i></button>
-        <button class="delete-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
-        ${role === 'user' ? `<button class="edit-btn" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
-        ${role === 'assistant' ? `<button class="rate-btn" title="Feedback"><i class="fas fa-thumbs-up"></i></button>
-        <button class="rate-btn" title="Feedback"><i class="fas fa-thumbs-down"></i></button>` : ''}
-    `;
-    messageContent.appendChild(actions);
-
-    actions.querySelector('.copy-btn').onclick = () => {
-        navigator.clipboard.writeText(content);
-        showToast('Copied!');
-    };
-    actions.querySelector('.delete-btn').onclick = () => {
-        messageDiv.remove();
-        // Optionally call backend to delete message by msgId
-    };
-    if (role === 'user') {
-        actions.querySelector('.edit-btn').onclick = () => {
-            const old = content;
-            const area = document.createElement('textarea');
-            area.value = old;
-            messageContent.innerHTML = '';
-            messageContent.appendChild(area);
-            area.focus();
-            area.onblur = () => {
-                const newMsg = area.value.trim();
-                if (newMsg && newMsg !== old) {
-                    messageContent.innerHTML = newMsg;
-                } else {
-                    messageContent.innerHTML = old;
-                }
-                messageContent.appendChild(actions);
-            };
-        };
-    }
-    if (role === 'assistant') {
-        const rateBtns = actions.querySelectorAll('.rate-btn');
-        rateBtns[0].onclick = () => showToast('Thanks for your feedback!');
-        rateBtns[1].onclick = () => showToast('We\'ll try to improve!');
+      // Set saved voice
+      const savedVoice = localStorage.getItem("selectedVoice")
+      if (savedVoice) {
+        voiceSelect.value = savedVoice
+        selectedVoice = voices[savedVoice]
+      }
     }
 
-    messageDiv.appendChild(avatar);
-    messageDiv.appendChild(messageContent);
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    if (role === 'assistant') speakMessage(content);
+    // Trigger initial load of voices
+    synth.getVoices()
+  }
 }
 
-// ====== FILE & IMAGE UPLOADS ======
-function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (!(/\.(pdf|docx|txt)$/i).test(file.name)) {
-        showToast('Invalid file type');
-        return;
-    }
-    const formData = new FormData();
-    formData.append('file', file);
-    fetch('/api/upload-file', { method: 'POST', body: formData })
-        .then(r => r.json()).then(res => {
-            if (res.summary) addMessage(res.summary, 'assistant');
-            else showToast('File uploaded, but no summary returned.');
-        }).catch(()=>showToast('Failed to upload file.'));
+// Toggle sidebar
+function toggleSidebar() {
+  sidebar.classList.toggle("active")
+  sidebarOverlay.classList.toggle("active")
 }
 
-function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const imageDataUrl = e.target.result;
-            addImageMessage(imageDataUrl, 'user');
-            fetch('/api/analyze-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imageDataUrl })
-            })
-            .then(r => r.json())
-            .then(res => addMessage(res.description || "Image analysis not available.", 'assistant'))
-            .catch(() => addMessage("Image analysis failed.", 'assistant'));
-        };
-        reader.readAsDataURL(file);
-        event.target.value = '';
-    } else {
-        showToast("Please select a valid image file.");
-    }
+// Toggle theme
+function toggleTheme() {
+  const currentTheme = localStorage.getItem("theme") || "system"
+  let newTheme
+
+  if (currentTheme === "system") {
+    newTheme = document.body.classList.contains("light-theme") ? "dark" : "light"
+  } else {
+    newTheme = currentTheme === "light" ? "dark" : "light"
+  }
+
+  localStorage.setItem("theme", newTheme)
+  themeSelect.value = newTheme
+  applyTheme(newTheme)
 }
 
-function addImageMessage(imageDataUrl, role) {
-    const messagesContainer = document.getElementById('messages');
-    if (!messagesContainer) return;
-    const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-    if (welcomeMessage) welcomeMessage.remove();
+// Save settings
+function saveSettings() {
+  // Save theme
+  const theme = themeSelect.value
+  localStorage.setItem("theme", theme)
+  applyTheme(theme)
 
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
+  // Save voice
+  const voiceIndex = voiceSelect.value
+  localStorage.setItem("selectedVoice", voiceIndex)
+  selectedVoice = voices[voiceIndex]
 
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.innerHTML = '<i class="fas fa-user"></i>';
+  // Save user name
+  const userName = userNameInput.value
+  localStorage.setItem("userName", userName)
+  document.getElementById("userName").textContent = userName
 
-    const messageContent = document.createElement('div');
-    messageContent.className = 'message-content';
+  // Close modal
+  settingsModal.style.display = "none"
 
-    const img = document.createElement('img');
-    img.src = imageDataUrl;
-    img.style.maxWidth = '300px';
-    img.style.maxHeight = '300px';
-    img.style.borderRadius = '8px';
-    img.style.objectFit = 'cover';
-
-    messageContent.appendChild(img);
-    messageDiv.appendChild(avatar);
-    messageDiv.appendChild(messageContent);
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  // Show toast
+  showToast(translations[currentLanguage].settingsSaved || "Settings saved successfully")
 }
 
-// ====== CHAT/VOICE/INPUT FUNCTIONS ======
-function setupInputHandlers() {
-    const messageInput = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    if (messageInput && sendBtn) {
-        messageInput.addEventListener('input', function() {
-            sendBtn.disabled = !this.value.trim();
-            autoResize(this);
-        });
-        messageInput.addEventListener('keydown', handleKeyDown);
-    }
-}
-
-function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-    }
-}
-
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
-}
-
-function showLoadingScreen() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) loadingScreen.style.display = 'flex';
-}
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-        setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
-    }
-}
-
-function initializeMobileLayout() {
-    if (window.innerWidth <= 768) {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.remove('active');
-    }
-}
-function toggleMobileMenu() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-}
-function initializeMobileMenu() {
-    const menuBtn = document.getElementById('menuBtn');
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    if (menuBtn && sidebar && overlay) {
-        menuBtn.addEventListener('click', toggleMobileMenu);
-        overlay.addEventListener('click', toggleMobileMenu);
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 768 && sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        });
-    }
-}
-
-// ====== VOICE/SPEAKER ======
-function initializeSpeaker() {
-    const speakerBtn = document.getElementById('speakerBtn');
-    if (speakerBtn) {
-        speakerBtn.classList.toggle('active', isSpeakerEnabled);
-        speakerBtn.innerHTML = `<i class="fas fa-volume-${isSpeakerEnabled ? 'up' : 'mute'}"></i>`;
-    }
-}
+// Toggle speaker
 function toggleSpeaker() {
-    isSpeakerEnabled = !isSpeakerEnabled;
-    localStorage.setItem('speakerEnabled', isSpeakerEnabled);
-    const speakerBtn = document.getElementById('speakerBtn');
-    if (speakerBtn) {
-        speakerBtn.classList.toggle('active', isSpeakerEnabled);
-        speakerBtn.innerHTML = `<i class="fas fa-volume-${isSpeakerEnabled ? 'up' : 'mute'}"></i>`;
-    }
-    if (!isSpeakerEnabled && isCurrentlySpeaking) stopSpeaking();
-}
-function stopSpeaking() {
-    if (currentUtterance) {
-        speechSynthesis.cancel();
-        isCurrentlySpeaking = false;
-        currentUtterance = null;
-    }
-}
-function speakMessage(text) {
-    if (!isSpeakerEnabled || !speechSynthesis) return;
-    stopSpeaking();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const langMap = { 'english': 'en-US', 'telugu': 'te-IN', 'tamil': 'ta-IN' };
-    utterance.lang = langMap[currentLanguage] || 'en-US';
-    const voices = speechSynthesis.getVoices();
-    let preferredVoice = null;
-    if (settings.voice) {
-        preferredVoice = voices.find(v => v.name === settings.voice);
-    }
-    if (!preferredVoice) {
-        preferredVoice = voices.find(voice =>
-            voice.lang === utterance.lang && /female|girl|woman/i.test(voice.name)
-        ) || voices.find(voice => voice.lang === utterance.lang);
-    }
-    if (preferredVoice) utterance.voice = preferredVoice;
-    utterance.rate = 1.15; utterance.pitch = 1.5; utterance.volume = 1.0;
-    utterance.onstart = () => { isCurrentlySpeaking = true; };
-    utterance.onend = () => { isCurrentlySpeaking = false; currentUtterance = null; };
-    utterance.onerror = () => { isCurrentlySpeaking = false; currentUtterance = null; };
-    currentUtterance = utterance;
-    speechSynthesis.speak(utterance);
-}
-function setupVoiceRecognition() {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        const recognitionLanguages = { english: 'en-US', telugu: 'te-IN', tamil: 'ta-IN' };
-        recognition.lang = recognitionLanguages[currentLanguage];
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript;
-            const messageInput = document.getElementById('messageInput');
-            if (messageInput) {
-                messageInput.value = transcript;
-                document.getElementById('sendBtn').disabled = false;
-            }
-        };
-        recognition.onstart = function() {
-            isRecording = true;
-            const voiceBtn = document.getElementById('voiceBtn');
-            if (voiceBtn) {
-                voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
-                voiceBtn.classList.add('recording');
-            }
-        };
-        recognition.onend = function() {
-            isRecording = false;
-            const voiceBtn = document.getElementById('voiceBtn');
-            if (voiceBtn) {
-                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-                voiceBtn.classList.remove('recording');
-            }
-        };
-    }
-}
-function toggleVoiceRecording() {
-    if (!recognition) {
-        alert(translations[currentLanguage].voiceNotSupported);
-        return;
-    }
-    if (isRecording) recognition.stop();
-    else recognition.start();
+  speakerEnabled = !speakerEnabled
+  localStorage.setItem("speakerEnabled", speakerEnabled)
+  updateSpeakerIcon()
+
+  // Show toast
+  showToast(
+    speakerEnabled
+      ? translations[currentLanguage].voiceOutputEnabled || "Voice output enabled"
+      : translations[currentLanguage].voiceOutputDisabled || "Voice output disabled",
+  )
 }
 
-// ====== LANGUAGE SWITCHER ======
-function addLanguageSwitcher() {
-    const headerRight = document.querySelector('.header-right');
-    if (headerRight && !headerRight.querySelector('.language-switcher')) {
-        const languageSwitcher = document.createElement('div');
-        languageSwitcher.className = 'language-switcher';
-        languageSwitcher.innerHTML = `
-            <button onclick="switchLanguage('english')" class="lang-btn ${currentLanguage === 'english' ? 'active' : ''}" title="English">EN</button>
-            <button onclick="switchLanguage('telugu')" class="lang-btn ${currentLanguage === 'telugu' ? 'active' : ''}" title="తెలుగు">తె</button>
-            <button onclick="switchLanguage('tamil')" class="lang-btn ${currentLanguage === 'tamil' ? 'active' : ''}" title="தமிழ்">த</button>
-        `;
-        headerRight.insertBefore(languageSwitcher, headerRight.firstChild);
-    }
-}
-function switchLanguage(language) {
-    if (translations[language]) {
-        stopSpeaking();
-        currentLanguage = language;
-        localStorage.setItem('preferredLanguage', language);
-        updateUILanguage();
-        setupVoiceRecognition();
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('onclick').includes(language)) btn.classList.add('active');
-        });
-    }
-}
-function updateUILanguage() {
-    try {
-        document.querySelectorAll('[data-translate]').forEach(element => {
-            const key = element.getAttribute('data-translate');
-            if (translations[currentLanguage] && translations[currentLanguage][key]) {
-                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-                    element.placeholder = translations[currentLanguage][key];
-                } else {
-                    element.textContent = translations[currentLanguage][key];
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error updating UI language:', error);
-    }
+// Update speaker icon
+function updateSpeakerIcon() {
+  speakerBtn.innerHTML = speakerEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>'
 }
 
-// ====== CHAT MANAGEMENT ======
-async function newChat() {
-    try {
-        const response = await fetch('/api/new-chat', { method: 'POST' });
-        if (response.ok) {
-            const messagesContainer = document.getElementById('messages');
-            if (messagesContainer) {
-                messagesContainer.innerHTML = getWelcomeMessageHTML();
-                updateUILanguage();
-            }
-            loadConversationsList();
-        }
-    } catch (error) { showToast('Error starting new chat'); }
-}
-
-async function clearHistory() {
-    if (confirm(translations[currentLanguage].clearConfirm)) {
-        try {
-            const response = await fetch('/api/clear-history', { method: 'POST' });
-            if (response.ok) {
-                const messagesContainer = document.getElementById('messages');
-                if (messagesContainer) {
-                    messagesContainer.innerHTML = getWelcomeMessageHTML();
-                    updateUILanguage();
-                }
-                loadConversationsList();
-            }
-        } catch (error) { showToast('Error clearing history'); }
-    }
-}
-
-async function loadConversation() {
-    try {
-        let url = '/api/conversations';
-        if (currentConversationId) url += `?id=${encodeURIComponent(currentConversationId)}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        const messagesContainer = document.getElementById('messages');
-        if (messagesContainer && data.messages && data.messages.length > 0) {
-            messagesContainer.innerHTML = '';
-            data.messages.forEach(message => {
-                addMessage(message.content, message.role, message.id);
-            });
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (messagesContainer) {
-            messagesContainer.innerHTML = getWelcomeMessageHTML();
-        }
-    } catch (error) { showToast('Error loading conversation'); }
-}
-
-// ====== TYPING INDICATOR ======
-function showTypingIndicator() {
-    isTyping = true;
-    const messagesContainer = document.getElementById('messages');
-    if (!messagesContainer) return;
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'message assistant typing-indicator';
-    typingDiv.id = 'typingIndicator';
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.innerHTML = '<i class="fas fa-brain"></i>';
-    const typingContent = document.createElement('div');
-    typingContent.className = 'message-content';
-    typingContent.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
-    typingDiv.appendChild(avatar);
-    typingDiv.appendChild(typingContent);
-    messagesContainer.appendChild(typingDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-function hideTypingIndicator() {
-    isTyping = false;
-    const typingIndicator = document.getElementById('typingIndicator');
-    if (typingIndicator) typingIndicator.remove();
-}
-
-// ====== SEND MESSAGE ======
+// Send message
 async function sendMessage() {
-    const messageInput = document.getElementById('messageInput');
-    const message = messageInput.value.trim();
-    if (!message || isTyping) return;
-    addMessage(message, 'user');
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-    document.getElementById('sendBtn').disabled = true;
-    showTypingIndicator();
-    try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: message,
-                language: currentLanguage,
-                conversation_id: currentConversationId
-            })
-        });
-        const data = await response.json();
-        if (response.ok) {
-            hideTypingIndicator();
-            addMessage(data.response, 'assistant');
-            loadConversationsList();
-        } else {
-            hideTypingIndicator();
-            addMessage(translations[currentLanguage].errorMessage, 'assistant');
-        }
-    } catch (error) {
-        hideTypingIndicator();
-        addMessage(translations[currentLanguage].errorMessage, 'assistant');
+  const message = messageInput.value.trim()
+  if (message === "" || isProcessing) return
+
+  isProcessing = true
+
+  // Clear input
+  messageInput.value = ""
+  messageInput.style.height = "auto"
+  sendBtn.disabled = true
+
+  // Add user message to UI
+  addMessage(message, "user")
+
+  // Scroll to bottom
+  scrollToBottom()
+
+  try {
+    // Send message to API
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message,
+        chatId: currentChatId,
+        language: currentLanguage,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (data.error) {
+      showToast("Error: " + data.error)
+      return
     }
+
+    // Add assistant message to UI
+    addMessage(data.response, "assistant")
+
+    // Speak response if enabled
+    if (speakerEnabled) {
+      speakText(data.response)
+    }
+
+    // Update chat history
+    updateChatHistoryUI()
+  } catch (error) {
+    console.error("Error:", error)
+    showToast(translations[currentLanguage].errorSendingMessage || "Error sending message. Please try again.")
+  } finally {
+    isProcessing = false
+    scrollToBottom()
+  }
 }
 
-// ====== WELCOME MESSAGE HTML ======
-function getWelcomeMessageHTML() {
-    return `
-        <div class="welcome-message">
-            <div class="welcome-icon">
-                <i class="fas fa-brain"></i>
-            </div>
-            <h2 id="bomma-welcome" data-translate="welcome">${settings.userName}, Welcome to Bomma AI</h2>
-            <p data-translate="description">Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations.</p>
-            <div class="features">
-                <div class="feature">
-                    <i class="fas fa-code"></i>
-                    <span data-translate="codeAssistance">Code Assistance</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-lightbulb"></i>
-                    <span data-translate="creativeSolutions">Creative Solutions</span>
-                </div>
-                <div class="feature">
-                    <i class="fas fa-book"></i>
-                    <span data-translate="knowledgeBase">Knowledge Base</span>
-                </div>
-            </div>
-        </div>
-    `;
+// Add message to UI
+function addMessage(content, role) {
+  // Remove welcome message if present
+  const welcomeMessage = document.querySelector(".welcome-message")
+  if (welcomeMessage) {
+    welcomeMessage.remove()
+  }
+
+  const messageDiv = document.createElement("div")
+  messageDiv.className = `message ${role}`
+
+  const avatar = document.createElement("div")
+  avatar.className = "message-avatar"
+  avatar.innerHTML = role === "user" ? '<i class="fas fa-user"></i>' : '<i class="fas fa-brain"></i>'
+
+  const messageContent = document.createElement("div")
+  messageContent.className = "message-content"
+
+  // Process markdown if it's an assistant message
+  if (role === "assistant") {
+    // Use the marked library to convert markdown to HTML
+    messageContent.innerHTML = marked.parse(content)
+
+    // Apply syntax highlighting to code blocks
+    if (window.hljs) {
+      messageContent.querySelectorAll("pre code").forEach((block) => {
+        hljs.highlightElement(block)
+      })
+    }
+  } else {
+    messageContent.textContent = content
+  }
+
+  messageDiv.appendChild(avatar)
+  messageDiv.appendChild(messageContent)
+  messagesContainer.appendChild(messageDiv)
 }
+
+// Scroll to bottom of messages
+function scrollToBottom() {
+  messagesContainer.scrollTop = messagesContainer.scrollHeight
+}
+
+// Show toast notification
+function showToast(message, duration = 3000) {
+  const toast = document.getElementById("toast")
+  toast.textContent = message
+  toast.classList.add("show")
+
+  setTimeout(() => {
+    toast.classList.remove("show")
+  }, duration)
+}
+
+// Speak text
+function speakText(text) {
+  if (!("speechSynthesis" in window)) return
+
+  // Cancel any ongoing speech
+  synth.cancel()
+
+  // Create utterance
+  const utterance = new SpeechSynthesisUtterance(text)
+
+  // Set voice if selected
+  if (selectedVoice) {
+    utterance.voice = selectedVoice
+  }
+
+  // Set language based on current language
+  if (currentLanguage === "te") {
+    utterance.lang = "te-IN"
+  } else if (currentLanguage === "ta") {
+    utterance.lang = "ta-IN"
+  } else {
+    utterance.lang = "en-US"
+  }
+
+  // Speak
+  synth.speak(utterance)
+}
+
+// Toggle voice recording
+function toggleVoiceRecording() {
+  if (!("webkitSpeechRecognition" in window)) {
+    showToast(
+      translations[currentLanguage].speechRecognitionNotSupported || "Speech recognition not supported in this browser",
+    )
+    return
+  }
+
+  const recognition = new webkitSpeechRecognition()
+  recognition.continuous = false
+  recognition.interimResults = false
+
+  // Set language based on current language
+  if (currentLanguage === "te") {
+    recognition.lang = "te-IN"
+  } else if (currentLanguage === "ta") {
+    recognition.lang = "ta-IN"
+  } else {
+    recognition.lang = "en-US"
+  }
+
+  // Start recording
+  voiceBtn.classList.add("recording")
+  voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>'
+  showToast(translations[currentLanguage].listening || "Listening...")
+
+  recognition.start()
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript
+    messageInput.value = transcript
+    sendBtn.disabled = false
+
+    // Auto-resize textarea
+    messageInput.style.height = "auto"
+    messageInput.style.height = messageInput.scrollHeight + "px"
+  }
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error", event.error)
+    showToast("Error: " + event.error)
+    voiceBtn.classList.remove("recording")
+    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>'
+  }
+
+  recognition.onend = () => {
+    voiceBtn.classList.remove("recording")
+    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>'
+  }
+}
+
+// Handle image upload
+function handleImageUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith("image/")) {
+    showToast(translations[currentLanguage].pleaseSelectImage || "Please select an image file")
+    return
+  }
+
+  // Create form data
+  const formData = new FormData()
+  formData.append("image", file)
+  formData.append("chatId", currentChatId)
+  formData.append("prompt", "What is in this image?")
+
+  // Add user message to UI
+  addMessage(`I've uploaded an image: ${file.name}`, "user")
+
+  // Show loading state
+  isProcessing = true
+  showToast(translations[currentLanguage].uploadingImage || "Uploading and analyzing image...")
+
+  // Send to API
+  fetch("/api/upload-image", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.error) {
+        showToast("Error: " + data.error)
+        return
+      }
+
+      // Add assistant message to UI
+      addMessage(data.response, "assistant")
+
+      // Speak response if enabled
+      if (speakerEnabled) {
+        speakText(data.response)
+      }
+
+      // Update chat history
+      updateChatHistoryUI()
+    })
+    .catch((error) => {
+      console.error("Error:", error)
+      showToast(translations[currentLanguage].errorProcessingImage || "Error processing image. Please try again.")
+    })
+    .finally(() => {
+      isProcessing = false
+      scrollToBottom()
+    })
+}
+
+// Handle file upload
+function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // Create form data
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("chatId", currentChatId)
+
+  // Add user message to UI
+  addMessage(`I've uploaded a file: ${file.name}`, "user")
+
+  // Show loading state
+  isProcessing = true
+  showToast(translations[currentLanguage].uploadingFile || "Uploading file...")
+
+  // Send to API
+  fetch("/api/upload-file", {
+    method: "POST",
+    body: formData,
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.error) {
+        showToast("Error: " + data.error)
+        return
+      }
+
+      // Add assistant message to UI
+      addMessage(data.response, "assistant")
+
+      // Speak response if enabled
+      if (speakerEnabled) {
+        speakText(data.response)
+      }
+
+      // Update chat history
+      updateChatHistoryUI()
+    })
+    .catch((error) => {
+      console.error("Error:", error)
+      showToast(translations[currentLanguage].errorProcessingFile || "Error processing file. Please try again.")
+    })
+    .finally(() => {
+      isProcessing = false
+      scrollToBottom()
+    })
+}
+
+// Load chat history
+function loadChatHistory() {
+  fetch("/api/get-history?chatId=" + currentChatId)
+    .then((response) => response.json())
+    .then((data) => {
+      // Update chat history UI
+      updateChatHistoryUI()
+
+      // Load messages for current chat
+      if (data.history && data.history.length > 0) {
+        // Remove welcome message
+        const welcomeMessage = document.querySelector(".welcome-message")
+        if (welcomeMessage) {
+          welcomeMessage.remove()
+        }
+
+        // Add messages to UI
+        data.history.forEach((item) => {
+          addMessage(item.user, "user")
+          addMessage(item.assistant, "assistant")
+        })
+
+        // Scroll to bottom
+        scrollToBottom()
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading chat history:", error)
+    })
+}
+
+// Update chat history UI
+function updateChatHistoryUI() {
+  fetch("/api/get-history")
+    .then((response) => response.json())
+    .then((data) => {
+      // Clear chat history UI
+      chatHistory.innerHTML = ""
+
+      // Add chat items
+      if (data.history && data.history.length > 0) {
+        data.history.forEach((item, index) => {
+          const chatItem = document.createElement("div")
+          chatItem.className = `chat-item ${item.chatId === currentChatId ? "active" : ""}`
+          chatItem.onclick = () => switchChat(item.chatId)
+
+          const title = document.createElement("div")
+          title.className = "chat-item-title"
+          title.textContent = item.user.substring(0, 30) + (item.user.length > 30 ? "..." : "")
+
+          const date = document.createElement("div")
+          date.className = "chat-item-date"
+          date.textContent = new Date(item.timestamp * 1000).toLocaleString()
+
+          chatItem.appendChild(title)
+          chatItem.appendChild(date)
+          chatHistory.appendChild(chatItem)
+        })
+      } else {
+        const emptyState = document.createElement("div")
+        emptyState.className = "empty-state"
+        emptyState.textContent = translations[currentLanguage].noChatHistory || "No chat history yet"
+        chatHistory.appendChild(emptyState)
+      }
+    })
+    .catch((error) => {
+      console.error("Error updating chat history UI:", error)
+    })
+}
+
+// Switch chat
+function switchChat(chatId) {
+  currentChatId = chatId
+
+  // Update active chat item
+  document.querySelectorAll(".chat-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.chatId === chatId)
+  })
+
+  // Clear messages
+  messagesContainer.innerHTML = ""
+
+  // Load messages for selected chat
+  loadChatHistory()
+
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) {
+    toggleSidebar()
+  }
+}
+
+// Start new chat
+function newChat() {
+  fetch("/api/new-chat")
+    .then((response) => response.json())
+    .then((data) => {
+      currentChatId = data.chatId
+
+      // Clear messages
+      messagesContainer.innerHTML = ""
+
+      // Add welcome message
+      const welcomeHTML = `
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h2 id="bomma-welcome" data-translate="welcome">${translations[currentLanguage].welcome || "Welcome to Bomma AI"}</h2>
+                    <p data-translate="description">${translations[currentLanguage].description || "Your intelligent assistant powered by advanced AI technology. I'm here to help you with information, coding, creative tasks, and thoughtful conversations."}</p>
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-code"></i>
+                            <span data-translate="codeAssistance">${translations[currentLanguage].codeAssistance || "Code Assistance"}</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-lightbulb"></i>
+                            <span data-translate="creativeSolutions">${translations[currentLanguage].creativeSolutions || "Creative Solutions"}</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-book"></i>
+                            <span data-translate="knowledgeBase">${translations[currentLanguage].knowledgeBase || "Knowledge Base"}</span>
+                        </div>
+                    </div>
+                </div>
+            `
+      messagesContainer.innerHTML = welcomeHTML
+
+      // Update translations
+      updateTranslations()
+
+      // Update chat history UI
+      updateChatHistoryUI()
+
+      // Close sidebar on mobile
+      if (window.innerWidth <= 768) {
+        toggleSidebar()
+      }
+    })
+    .catch((error) => {
+      console.error("Error creating new chat:", error)
+      showToast(translations[currentLanguage].errorCreatingNewChat || "Error creating new chat. Please try again.")
+    })
+}
+
+// Clear chat history
+function clearHistory() {
+  if (
+    confirm(
+      translations[currentLanguage].clearHistoryConfirmation || "Are you sure you want to clear all chat history?",
+    )
+  ) {
+    fetch("/api/clear-history", {
+      method: "POST",
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          // Clear chat history UI
+          chatHistory.innerHTML = ""
+
+          // Start new chat
+          newChat()
+
+          // Show toast
+          showToast(translations[currentLanguage].chatHistoryCleared || "Chat history cleared")
+        }
+      })
+      .catch((error) => {
+        console.error("Error clearing chat history:", error)
+        showToast(
+          translations[currentLanguage].errorClearingChatHistory || "Error clearing chat history. Please try again.",
+        )
+      })
+  }
+}
+
+const marked = window.marked
+const hljs = window.hljs
+const webkitSpeechRecognition = window.webkitSpeechRecognition
