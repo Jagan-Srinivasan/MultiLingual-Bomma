@@ -1,243 +1,236 @@
-from flask import Flask, render_template, request, jsonify, session, send_from_directory
-import uuid
-import datetime
-import json
 import os
+import json
 import google.generativeai as genai
-
+from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+import base64
+import time
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this'
 
-# Configure Gemini AI (do not hardcode fallback API key!)
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if not GEMINI_API_KEY:
-    raise EnvironmentError("GEMINI_API_KEY environment variable is not set")
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Configure upload folder
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# In-memory storage: user_id -> {conversations: {conv_id: {...}}}
-users = {}
+# Configure Gemini API
+api_key = os.environ.get("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
 
-# For demo: Use session as user_id (works for single user/deploy), for multi-user use real auth.
-def get_user_id():
-    if 'user_id' not in session:
-        session['user_id'] = str(uuid.uuid4())
-    return session['user_id']
+genai.configure(api_key=api_key)
 
-# Multi-language responses (make sure 'english' always present!)
-responses = {
-    'english': {
-        'hello': "Hello! How can I help you today?",
-        'hi': "Hi there! How can I assist you?",
-        'help': "I'm Bomma AI. Ask me anything or try changing the language.",
-        'error': "Sorry, something went wrong. Please try again.",
-        'fallback': "Thanks for reaching out! I'm Bomma AI, and I'd love to help with that. Currently running in demo mode."
-    },
-    'telugu': {
-        'hello': "హలో! నిన్ను ఎలా సహాయపడగలను?",
-        'hi': "హాయ్! నేను మీకు ఎలా సహాయపడగలను?",
-        'help': "నేను బొమ్మా AI. నన్ను ఏదైనా అడగండి లేదా భాషను మార్చండి.",
-        'error': "క్షమించండి, ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.",
-        'fallback': "మీ సందేశానికి ధన్యవాదాలు! నేను బొమ్మా AI, మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను."
-    },
-    # Add more languages here as needed, always include 'english'
-    # 'hindi': { ... }
-}
+# Set up the model
+model = genai.GenerativeModel('gemini-pro')
+vision_model = genai.GenerativeModel('gemini-pro-vision')
 
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                              'favicon.ico', mimetype='image/vnd.microsoft.icon')
+# Chat history storage (in-memory for demo)
+chat_history = {}
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# --- Chat API: create/send message to a conversation ---
 @app.route('/api/chat', methods=['POST'])
 def chat():
+    data = request.json
+    message = data.get('message', '')
+    chat_id = data.get('chatId', 'default')
+    language = data.get('language', 'en')
+    
+    # Initialize chat history for this chat ID if it doesn't exist
+    if chat_id not in chat_history:
+        chat_history[chat_id] = []
+    
+    # Add user message to history
+    chat_history[chat_id].append({"role": "user", "parts": [message]})
+    
     try:
-        data = request.get_json()
-        message = data.get('message', '').strip()
-        language = data.get('language', 'english')
-        conv_id = data.get('conversation_id')
-
-        if not message:
-            return jsonify({'error': 'Message is required'}), 400
-
-        user_id = get_user_id()
-        user = users.setdefault(user_id, {'conversations': {}})
-
-        # Use or create conversation
-        if not conv_id or conv_id not in user['conversations']:
-            # New conversation
-            conv_id = str(uuid.uuid4())
-            user['conversations'][conv_id] = {
-                'id': conv_id,
-                'messages': [],
-                'created_at': datetime.datetime.now().isoformat(),
-                'updated_at': datetime.datetime.now().isoformat(),
-                'language': language,
-                'title': message[:40] + ('...' if len(message) > 40 else '')
-            }
-        conversation = user['conversations'][conv_id]
-
-        # Add user message
-        user_message = {
-            'id': str(uuid.uuid4()),
-            'role': 'user',
-            'content': message,
-            'timestamp': datetime.datetime.now().isoformat(),
-            'language': language
-        }
-        conversation['messages'].append(user_message)
-
-        # Generate AI response
-        ai_response = generate_ai_response(message, language, conversation['messages'])
-
-        # Add AI message
-        ai_message = {
-            'id': str(uuid.uuid4()),
-            'role': 'assistant',
-            'content': ai_response,
-            'timestamp': datetime.datetime.now().isoformat(),
-            'language': language
-        }
-        conversation['messages'].append(ai_message)
-
-        # Update conversation meta
-        conversation['updated_at'] = datetime.datetime.now().isoformat()
-        if not conversation.get("title"):
-            conversation["title"] = message[:40] + ('...' if len(message) > 40 else '')
-
-        # Save current conversation
-        session['conversation_id'] = conv_id
-
+        # Create a chat session
+        chat = model.start_chat(history=chat_history[chat_id])
+        
+        # Get response from Gemini
+        response = chat.send_message(message)
+        response_text = response.text
+        
+        # Add assistant response to history
+        chat_history[chat_id].append({"role": "model", "parts": [response_text]})
+        
         return jsonify({
-            'response': ai_response,
-            'conversation_id': conv_id,
-            'language': language
+            "response": response_text,
+            "chatId": chat_id
         })
     except Exception as e:
-        print(f"Chat error: {str(e)}")
+        print(f"Error: {str(e)}")
         return jsonify({
-            'error': 'Internal server error',
-            'response': responses['english']['error']
+            "error": str(e),
+            "response": "Sorry, I encountered an error. Please try again."
         }), 500
 
-def generate_ai_response(message, language, conversation_history):
-    message_lower = message.lower()
-    # Always use .get with fallback to responses['english']
-    lang_responses = responses.get(language, responses['english'])
-
-    # Check for language-specific hardcoded responses
-    for key, response in lang_responses.items():
-        if key in message_lower:
-            return response
-
-    # Gemini AI response with language context
-    if model and GEMINI_API_KEY:
-        try:
-            language_map = {
-                'telugu': 'Telugu (తెలుగు)',
-                'tamil': 'Tamil (தமிழ்)',
-                'english': 'English'
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+    
+    file = request.files['image']
+    chat_id = request.form.get('chatId', 'default')
+    prompt = request.form.get('prompt', 'What is in this image?')
+    
+    if file.filename == '':
+        return jsonify({"error": "No image selected"}), 400
+    
+    try:
+        # Save the file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Process the image with Gemini Vision
+        image_parts = [
+            {
+                "mime_type": file.content_type,
+                "data": base64.b64encode(open(filepath, "rb").read()).decode('utf-8')
             }
-            context = f"""You are Bomma AI, a helpful and friendly AI assistant.
-Instructions:
-1. Respond in {language_map.get(language, language)}
-2. Be concise and clear
-3. Maintain conversational tone
-4. Use appropriate script for {language}
+        ]
+        
+        prompt_parts = [
+            prompt,
+            image_parts[0]
+        ]
+        
+        response = vision_model.generate_content(prompt_parts)
+        
+        # Add to chat history
+        if chat_id not in chat_history:
+            chat_history[chat_id] = []
+        
+        # Add user message with image reference
+        chat_history[chat_id].append({
+            "role": "user", 
+            "parts": [f"{prompt} [Image uploaded: {filename}]"]
+        })
+        
+        # Add assistant response
+        chat_history[chat_id].append({
+            "role": "model", 
+            "parts": [response.text]
+        })
+        
+        return jsonify({
+            "response": response.text,
+            "chatId": chat_id
+        })
+    
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "response": "Sorry, I encountered an error processing your image."
+        }), 500
 
-Conversation History:
-"""
-            # Add conversation history
-            if conversation_history:
-                for msg in conversation_history[-6:]:
-                    context += f"{msg['role'].title()}: {msg['content']}\n"
-
-            context += f"\nUser: {message}\nBomma AI:"
-            response = model.generate_content(context)
-            return response.text
-        except Exception as e:
-            print(f"Gemini AI error: {e}")
-            return lang_responses.get('error', "Sorry, something went wrong while accessing Gemini AI.")
-
-    return lang_responses.get('fallback', "Thanks for reaching out! I'm Bomma AI, and I'd love to help with that. Currently running in demo mode.")
-
-# --- List ALL conversations (for sidebar history) ---
-@app.route('/api/conversations/list', methods=['GET'])
-def list_conversations():
-    user_id = get_user_id()
-    user = users.get(user_id, {'conversations': {}})
-    conversations = [
-        {
-            'id': conv['id'],
-            'title': conv['title'] or "Conversation",
-            'updated_at': conv.get('updated_at', conv.get('created_at', ''))
-        }
-        for conv in user['conversations'].values()
-    ]
-    # Sort newest first
-    conversations.sort(key=lambda c: c['updated_at'], reverse=True)
-    return jsonify({'conversations': conversations})
-
-# --- Get messages for a conversation (by conv_id param, or current by session) ---
-@app.route('/api/conversations', methods=['GET'])
-def get_conversations():
-    user_id = get_user_id()
-    user = users.get(user_id, {'conversations': {}})
-    conv_id = request.args.get('id') or session.get('conversation_id')
-    conversation = user['conversations'].get(conv_id) if conv_id else None
-    if not conversation:
-        return jsonify({'messages': []})
-    return jsonify({'messages': conversation['messages']})
-
-# --- Start a new conversation ---
-@app.route('/api/new-chat', methods=['POST'])
-def new_chat():
-    session.pop('conversation_id', None)
-    return jsonify({'success': True})
-
-# --- Clear all history for current conversation only ---
-@app.route('/api/clear-history', methods=['POST'])
-def clear_history():
-    user_id = get_user_id()
-    conv_id = session.get('conversation_id')
-    user = users.get(user_id, {'conversations': {}})
-    if conv_id and conv_id in user['conversations']:
-        user['conversations'][conv_id]['messages'] = []
-        user['conversations'][conv_id]['updated_at'] = datetime.datetime.now().isoformat()
-    return jsonify({'success': True})
-
-# --- FILE UPLOAD: PDF/DOCX/TXT summarization (stub) ---
 @app.route('/api/upload-file', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+        return jsonify({"error": "No file provided"}), 400
+    
     file = request.files['file']
-    filename = secure_filename(file.filename)
-    ext = filename.lower().split('.')[-1]
-    if ext not in ['pdf', 'docx', 'txt']:
-        return jsonify({'error': 'Unsupported file type'}), 400
-    # For demo, just respond with a dummy summary
-    # TODO: Add real file parsing and AI summarization
-    summary = f"Received file '{filename}'. File summarization is not yet implemented."
-    return jsonify({'summary': summary})
+    chat_id = request.form.get('chatId', 'default')
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    try:
+        # Save the file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # For demo purposes, just acknowledge the file upload
+        # In a real app, you'd process the file content based on type
+        
+        if chat_id not in chat_history:
+            chat_history[chat_id] = []
+        
+        # Add file upload to chat history
+        chat_history[chat_id].append({
+            "role": "user", 
+            "parts": [f"I've uploaded a file: {filename}. Please analyze it."]
+        })
+        
+        response_text = f"I've received your file '{filename}'. For this demo, I can't process the file contents directly, but in a full implementation, I would analyze the content based on the file type."
+        
+        # Add assistant response
+        chat_history[chat_id].append({
+            "role": "model", 
+            "parts": [response_text]
+        })
+        
+        return jsonify({
+            "response": response_text,
+            "chatId": chat_id
+        })
+    
+    except Exception as e:
+        print(f"Error processing file: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "response": "Sorry, I encountered an error processing your file."
+        }), 500
 
-# --- IMAGE ANALYSIS (stub) ---
-@app.route('/api/analyze-image', methods=['POST'])
-def analyze_image():
-    data = request.get_json()
-    image_data = data.get('image')
-    # For demo, just return a dummy description
-    # TODO: Add real image-to-text AI integration
-    desc = "Image analysis is not yet implemented."
-    return jsonify({'description': desc})
+@app.route('/api/get-history', methods=['GET'])
+def get_history():
+    chat_id = request.args.get('chatId', 'default')
+    
+    if chat_id in chat_history:
+        # Format history for frontend
+        formatted_history = []
+        for i in range(0, len(chat_history[chat_id]), 2):
+            if i+1 < len(chat_history[chat_id]):
+                user_msg = chat_history[chat_id][i]["parts"][0]
+                ai_msg = chat_history[chat_id][i+1]["parts"][0]
+                formatted_history.append({
+                    "user": user_msg,
+                    "assistant": ai_msg,
+                    "timestamp": time.time()  # In a real app, store actual timestamps
+                })
+        
+        return jsonify({
+            "history": formatted_history,
+            "chatId": chat_id
+        })
+    else:
+        return jsonify({
+            "history": [],
+            "chatId": chat_id
+        })
+
+@app.route('/api/new-chat', methods=['GET'])
+def new_chat():
+    # Generate a new chat ID
+    import uuid
+    new_id = str(uuid.uuid4())
+    
+    return jsonify({
+        "chatId": new_id
+    })
+
+@app.route('/api/clear-history', methods=['POST'])
+def clear_history():
+    global chat_history
+    chat_history = {}
+    
+    return jsonify({
+        "success": True,
+        "message": "Chat history cleared"
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
